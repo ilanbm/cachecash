@@ -21,6 +21,7 @@
  */
 
 import { createInterface } from "node:readline";
+import { homedir } from "node:os";
 import { run } from "./pipeline.js";
 import { parsePriceOverride } from "./pricing.js";
 import { applyEnable, applyRevert, runRecheck, runVerify } from "./actions.js";
@@ -187,6 +188,16 @@ async function main(): Promise<number> {
   // chars on a real TTY, per RenderOptions.noColor's "independent of TTY" doc.
   const sym = makeSym(!tty);
 
+  // fix (follow-up): enable/revert are first-class subcommands
+  // and must work in a HOME with zero transcripts — the settings edit needs
+  // no Summary. Route them BEFORE the analysis pipeline. --json is exempt:
+  // `cache-cash enable --json` is a Summary dump and never writes (module contract), so
+  // it keeps the pipeline path below. verify/recheck DO need transcripts
+  // (they analyze them) and keep their pipeline dependency unchanged.
+  if (!args.json && (args.subcommand === "enable" || args.subcommand === "revert")) {
+    return await runStandaloneAction(args);
+  }
+
   // Live per-project scan counter (section, TTY only) needs the run to report
   // progress; run() itself is a single async call (no progress callback in
   // S2), so on huge corpora (~4s/21.7k files per the analyzer notes) we print the
@@ -270,26 +281,20 @@ async function dispatch(
       process.stdout.write(renderCard(summary, opts) + "\n");
       return 0;
 
-    case "enable": {
-      const res = applyEnable();
-      process.stdout.write(res.message.join("\n") + "\n");
-      return 0;
-    }
-
-    case "revert": {
-      const res = applyRevert();
-      process.stdout.write(res.message.join("\n") + "\n");
-      return 0;
-    }
+    // "enable" / "revert" never reach this switch: non-json runs are
+    // early-routed to runStandaloneAction() in main() BEFORE the pipeline
+    // (fix — they must work without transcripts), and --json runs return
+    // via the JSON dump above. Keeping a single standalone write path (with
+    // its consent gate) avoids a second, unguarded route to applyEnable.
 
     case "verify": {
-      const res = runVerify();
+      const res = await runVerify({ home: homedir() });
       process.stdout.write(res.message.join("\n") + "\n");
       return 0;
     }
 
     case "recheck": {
-      const res = runRecheck();
+      const res = await runRecheck({ home: homedir() });
       process.stdout.write(res.message.join("\n") + "\n");
       return 0;
     }
@@ -357,9 +362,70 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Standalone `cache-cash enable` / `cache-cash revert` (the contract first-class
+ * subcommands). Runs BEFORE the analysis pipeline — the settings edit needs
+ * no Summary, so a HOME with zero transcripts can still enable/revert
+ * (follow-up fix; previously these were unreachable behind the
+ * "No transcripts found" gate in main()).
+ *
+ * Consent discipline mirrors maybeConsentFromEnding exactly (S3/S4):
+ * interactive [y/N] by default, --yes skips it, and a non-interactive run
+ * without --yes writes NOTHING — the one write is always confirmed. (The
+ * old dispatch() cases this replaces called applyEnable/applyRevert with no
+ * confirmation at all — fixed as part of this restructure.)
+ *
+ * For `enable`, the pipeline still runs best-effort AFTER consent so the
+ * recheck baseline gets written when transcripts exist (the design:
+ * "enable writes a small local baseline file"). Analysis failure or an
+ * empty corpus skips the baseline silently — it is convenience data for
+ * recheck receipts, never a precondition for the settings edit.
+ */
+async function runStandaloneAction(args: Args): Promise<number> {
+  const verb: "enable" | "revert" = args.subcommand === "enable" ? "enable" : "revert";
+  const interactive = process.stdout.isTTY && !process.env.CI;
+  const verbLabel = verb === "enable" ? "Enable 1h now" : "Revert to 5m now";
+
+  let confirmed = args.yes;
+  if (!confirmed && interactive) {
+    confirmed = await promptYesNo(`${verbLabel}? [y/N] `);
+  }
+  if (!confirmed) {
+    process.stdout.write(
+      interactive
+        ? "Nothing changed.\n"
+        : `(non-interactive: pass --yes to apply: \`cache-cash ${verb} --yes\`)\n`,
+    );
+    return 0;
+  }
+
+  if (verb === "revert") {
+    const res = applyRevert({ home: homedir() });
+    process.stdout.write(res.message.join("\n") + "\n");
+    return 0;
+  }
+
+  let summary: Summary | undefined;
+  try {
+    const r = await run({
+      project: args.project,
+      days: args.allTime ? null : args.days,
+      allTime: args.allTime,
+      jsonMode: true,
+      overrides: args.overrides,
+    });
+    summary = r.summary ?? undefined;
+  } catch {
+    // Analysis failure never blocks the enable itself (baseline is optional).
+  }
+  const res = applyEnable({ home: homedir(), summary });
+  process.stdout.write(res.message.join("\n") + "\n");
+  return 0;
+}
+
 async function maybeConsentFromEnding(
   args: Args,
-  _summary: Summary,
+  summary: Summary,
   needsConsent: boolean,
   consentVerb: "enable" | "revert" | undefined,
 ): Promise<number> {
@@ -386,7 +452,10 @@ async function maybeConsentFromEnding(
     return 0;
   }
 
-  const res = consentVerb === "enable" ? applyEnable() : applyRevert();
+  const res =
+    consentVerb === "enable"
+      ? applyEnable({ home: homedir(), summary })
+      : applyRevert({ home: homedir() });
   process.stdout.write("\n" + res.message.join("\n") + "\n");
   return 0;
 }
