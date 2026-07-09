@@ -1,0 +1,344 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 1`] = `
+"cache-cash - score 71.2/100 (leaking real money)
+R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
+biggest miss: 441K-token re-warm - $7.62 in one turn
+worst day: 2026-06-28 - $62.40 leaked
+  > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
+  > Your biggest single miss: a 441K-token re-warm in widgetco-api - $7.62 in
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 2`] = `
+"cache-cash - score 96.3/100 (certified optimal)
+R/C = 5.0% <= break-even 39.5% - 1h would cost ~$48.00/30d MORE
+biggest miss: 88K-token re-warm - $0.61 in one turn
+worst day: 2026-06-15 - $4.10 leaked
+  > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
+  > Your peak hour is 10:00 - 260 turns, more than any other hour.
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 3`] = `
+"cache-cash - score 98.5/100 (excellent)
+R/C = 13.7% recoverable (break-even 39.5%) - 1h is already yours OK
+biggest miss: 612K-token re-warm - $7.03 in one turn
+worst day: 2026-06-10 - $49.21 leaked
+  > Model switches invalidated 70.3M tokens of cache ($513.86).
+  > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > --explain, subscriber fixture 1`] = `
+"cache-cash --explain — every formula, your numbers substituted
+============================================================
+
+Gap classes (per turn vs previous turn, same session):
+  warm <=5m | recoverable 5-60m | cold >60m
+
+Your buckets (creation tokens):
+  warm = 298,898,667
+  recoverable (R) = 102,960,510
+  cold = 351,673,734
+  total (C) = 753,532,911
+
+R/C = 102,960,510 / 753,532,911 = 0.1366 (13.7%)
+
+Break-even (pure-5m case): 1h cheaper iff R/C > (2-1.25)/(2-0.1) = 0.75/1.9
+  = 0.3947 (39.5%)
+  your R/C <= threshold => 5m still optimal on a pure-5m pattern
+
+Actual cost reconstruction: sum over turns of c5*1.25P + c1*2P + read*0.1P
+  = $16,645.73 (USD-equivalent (API list rates))
+
+Counterfactual 5m-world (all creation at 1.25P; recoverable-gap reads re-warm at 1.25P):
+  = $18,121.67
+
+Counterfactual 1h-world (recoverable creation -> read@0.1P + bounded tail write@2P; else creation@2P):
+  = $15,620.72  (tail estimate: 3,638,863 tokens, $39.24)
+
+delta = cost1h - cost5m = $15,620.72 - $18,121.67 = -$2,500.95
+  (negative => 1h cheaper). Normalized to 30d: -$892.80 (span analyzed: 84.0d)
+
+Efficiency score = 100 * captured / (captured + avoidable)
+  avoidable (ttl-expiry-rewarm + model-switch $) = $1,132.46
+  captured (implied from score) ~= $74,364.93
+  score = 98.5 / 100
+
+Full derivation + worked example: METHODOLOGY.md"
+`;
+
+exports[`snapshots (ANSI-stripped) > --md, all three fixtures 1`] = `
+"### cache-cash checkup
+
+**Score:** 71.2 / 100 — leaking real money
+
+- Window: last 90 days (42 sessions, 3,100 turns)
+- TTL received (last 7d): 5m
+- Recoverable ratio: 36.0% (break-even 39.5%)
+
+| Leak | Tokens | $ | % of write spend |
+|---|---:|---:|---:|
+| TTL-expiry re-warms (5–60m gaps) | 9,000,000 | $420.50 | 27.0% |
+| Session cold starts (>60m or session start) _(info)_ | 4,000,000 | $25.00 | 1.6% |
+| Model-switch invalidations | 500,000 | $3.13 | 0.2% |
+| Compaction rewrites | 0 | $0.00 | 0.0% |
+| Subagent 5m overhead _(info)_ | 0 | $0.00 | 0.0% |
+
+**Biggest single miss:** 441K-token re-warm — $7.62 in one turn.
+**Worst day:** 2026-06-28 — $62.40 leaked.
+
+**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx cache-cash enable\` to apply.
+
+_methodology: npx cache-cash --explain_"
+`;
+
+exports[`snapshots (ANSI-stripped) > --md, all three fixtures 2`] = `
+"### cache-cash checkup
+
+**Score:** 96.3 / 100 — certified optimal
+
+- Window: last 90 days (80 sessions, 5,200 turns)
+- TTL received (last 7d): 5m
+- Recoverable ratio: 5.0% (break-even 39.5%)
+
+| Leak | Tokens | $ | % of write spend |
+|---|---:|---:|---:|
+| TTL-expiry re-warms (5–60m gaps) | 2,000,000 | $18.20 | 9.0% |
+| Session cold starts (>60m or session start) _(info)_ | 8,000,000 | $30.00 | 15.0% |
+| Model-switch invalidations | 0 | $0.00 | 0.0% |
+| Compaction rewrites | 0 | $0.00 | 0.0% |
+| Subagent 5m overhead _(info)_ | 0 | $0.00 | 0.0% |
+
+**Biggest single miss:** 88K-token re-warm — $0.61 in one turn.
+**Worst day:** 2026-06-15 — $4.10 leaked.
+
+**Verdict:** certified optimal ✓ — you're on the cheaper TTL for your pattern.
+
+_methodology: npx cache-cash --explain_"
+`;
+
+exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
+"### cache-cash checkup
+
+**Score:** 98.5 / 100 — excellent
+
+- Window: last 90 days (590 sessions, 43,774 turns)
+- TTL received (last 7d): 1h
+- Recoverable ratio: 13.7% (break-even 39.5%)
+
+| Leak | Tokens | $-eq | % of write spend |
+|---|---:|---:|---:|
+| TTL-expiry re-warms (5–60m gaps) | 102,770,623 | $618.60 | 7.3% |
+| Session cold starts (>60m or session start) _(info)_ | 351,673,734 | $2,447.90 | 29.0% |
+| Model-switch invalidations | 70,273,091 | $513.86 | 6.1% |
+| Compaction rewrites | 189,887 | $1.93 | 0.0% |
+| Subagent 5m overhead _(info)_ | 0 | $0.00 | 0.0% |
+
+**Biggest single miss:** 612K-token re-warm — $7.03 in one turn.
+**Worst day:** 2026-06-10 — $49.21 leaked.
+
+**Verdict:** 1h already yours (subscription) ✓ — your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world in the last 90 days.
+Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this window.
+
+_methodology: npx cache-cash --explain_"
+`;
+
+exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
+"+-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                CACHE EFFICIENCY SCORE                 |
+|                      71.2 / 100                       |
+|                                                       |
+|                  leaking real money                   |
++-------------------------------------------------------+
+
+  > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
+
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
+"+-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                CACHE EFFICIENCY SCORE                 |
+|                      96.3 / 100                       |
+|                                                       |
+|                   certified optimal                   |
++-------------------------------------------------------+
+
+  > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
+
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
+"+-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                 YOUR 1H CACHE RECEIPT                 |
+|         saved ~$2,500.95-eq vs 5m (last 90d)          |
+|                                                       |
+|             efficiency score: 98.5 / 100              |
++-------------------------------------------------------+
+
+  > Model switches invalidated 70.3M tokens of cache ($513.86).
+
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > ending A (enable) full render 1`] = `
+"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+
+CHECKUP
+  OK scanned 42 sessions, 3,100 turns (last 90 days)
+  OK TTL received (last 7d): 5m OK
+  [!] ttl-expiry re-warms: 9.0M tokens ($420.50)
+
++-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                CACHE EFFICIENCY SCORE                 |
+|                      71.2 / 100                       |
+|                                                       |
+|                  leaking real money                   |
++-------------------------------------------------------+
+
+GAP BREAKDOWN (cache-write tokens by re-warm gap)
+  warm (<=5m)  ##########----------  48.0%  12.0M
+  recoverable  #######-------------  36.0%  9.0M
+  cold (>60m)  ###-----------------  16.0%  4.0M
+
+R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
+
+YOUR CACHE, WRAPPED
+  > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
+  > Your biggest single miss: a 441K-token re-warm in widgetco-api - $7.62 in
+    one turn.
+  > Your biggest session wrote 5.2M tokens of cache in widgetco-api.
+  > Your peak hour is 14:00 - 420 turns, more than any other hour.
+  > Model switches invalidated 500K tokens of cache ($3.13).
+
+THE FIX
+
+You're on the 5-minute cache TTL. Your recoverable ratio (36.0%) is above the
+39.5% break-even - switching to the 1-hour TTL saves ~$380.00/30d (~$380.00 over
+the 30-day window analyzed).
+
+  diff:
+    "env": { "ENABLE_PROMPT_CACHING_1H": "1" }
+
+This edits ~/.claude/settings.json (backed up first). Applies to new sessions
+only.
+
+methodology: npx cache-cash --explain
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > ending B (certified optimal) full render 1`] = `
+"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+
+CHECKUP
+  OK scanned 80 sessions, 5,200 turns (last 90 days)
+  OK TTL received (last 7d): 5m OK
+  [!] ttl-expiry re-warms: 2.0M tokens ($18.20)
+
++-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                CACHE EFFICIENCY SCORE                 |
+|                      96.3 / 100                       |
+|                                                       |
+|                   certified optimal                   |
++-------------------------------------------------------+
+
+GAP BREAKDOWN (cache-write tokens by re-warm gap)
+  warm (<=5m)  ###############-----  75.0%  30.0M
+  recoverable  #-------------------   5.0%  2.0M
+  cold (>60m)  ####----------------  20.0%  8.0M
+
+R/C = 5.0% <= break-even 39.5% - 1h would cost ~$48.00/30d MORE
+
+YOUR CACHE, WRAPPED
+  > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
+  > Your peak hour is 10:00 - 260 turns, more than any other hour.
+  > Your biggest session wrote 1.8M tokens of cache in quietco-app.
+  > Your biggest single miss: a 88K-token re-warm in quietco-app - $0.61 in one
+    turn.
+  > You've used Claude Code 4 days in a row (33 active days this window).
+
++-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                 CERTIFIED OPTIMAL OK                  |
+|                                                       |
+|                   score: 96.3 / 100                   |
+|         caching saved you $834.00 vs uncached         |
+|    you're on 5m - the cheaper TTL for your pattern    |
++-------------------------------------------------------+
+
+The 5-minute TTL is already optimal for your pattern - switching to 1h would
+cost ~$48.00/30d more.
+proof: actual $246.00 vs 5m-world $246.00 vs 1h-world $342.00, over 60d.
+
+methodology: npx cache-cash --explain
+share: npx cache-cash --compact  -  #cachecash"
+`;
+
+exports[`snapshots (ANSI-stripped) > ending C (subscriber receipt) full render 1`] = `
+"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+
+CHECKUP
+  OK scanned 590 sessions, 43,774 turns (last 90 days)
+  OK TTL received (last 7d): 1h OK
+  [!] ttl-expiry re-warms: 102.8M tokens ($618.60)
+
++-------------------------------------------------------+
+|                      cache-cash                       |
+|                                                       |
+|                 YOUR 1H CACHE RECEIPT                 |
+|         saved ~$2,500.95-eq vs 5m (last 90d)          |
+|                                                       |
+|             efficiency score: 98.5 / 100              |
++-------------------------------------------------------+
+
+GAP BREAKDOWN (cache-write tokens by re-warm gap)
+  warm (<=5m)  ########------------  39.7%  298.9M
+  recoverable  ###-----------------  13.7%  103.0M
+  cold (>60m)  #########-----------  46.7%  351.7M
+
+R/C = 13.7% recoverable (break-even 39.5%) - 1h is already yours OK
+
+YOUR CACHE, WRAPPED
+  > Model switches invalidated 70.3M tokens of cache ($513.86).
+  > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
+  > Worst day: 2026-06-10 leaked $49.21 (7.6M tokens) to expired cache.
+  > Your biggest session wrote 21.2M tokens of cache in web-dashboard.
+  > Your biggest single miss: a 612K-token re-warm in orders-api - $7.03 in one
+    turn.
+
+YOUR RECEIPT
+
+Your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world
+in the last 90 days.
+Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this
+window.
+1h already yours, verified in your transcripts: 99.5% of writes are 1h OK
+
+QUOTA-LEAK LIST ($-equivalent, API list rates - not a bill)
+  > TTL-expiry re-warms: $618.60-eq (7.3% of spend)
+  - Session cold starts: $2,447.90-eq (29.0% of spend)
+  > Model-switch invalidations: $513.86-eq (6.1% of spend)
+  > Compaction rewrites: $1.93-eq (0.0% of spend)
+  - Subagent 5m overhead: $0.00-eq (0.0% of spend)
+
+note: subagents still run on 5m even under 1h; overage drops you to 5m and bills
+API rates.
+watch (TTL regression alarm): coming in v1.1 - watch the repo
+
+methodology: npx cache-cash --explain
+share: npx cache-cash --compact  -  #cachecash"
+`;

@@ -11,7 +11,7 @@ import { analyze } from "./analyze.js";
 import { buildSummary } from "./verdict.js";
 import { readEnvHints } from "./verdict.js";
 import type { PriceCtx } from "./costmodel.js";
-import type { Summary, TurnEvent } from "./types.js";
+import type { Branch, Summary, TurnEvent } from "./types.js";
 
 export interface RunOptions {
   project?: string;
@@ -20,6 +20,8 @@ export interface RunOptions {
   jsonMode?: boolean;
   overrides?: Record<string, number>;
   home?: string;
+  /** See verdict.ts BuildSummaryInput.branchOverride. */
+  branchOverride?: Branch;
 }
 
 export interface RunResult {
@@ -63,6 +65,7 @@ export async function run(opts: RunOptions): Promise<RunResult> {
     hints,
     jsonMode: opts.jsonMode === true,
     ctx,
+    branchOverride: opts.branchOverride,
   });
 
   return { summary, fileCount: files.length, code: 0 };

@@ -1,39 +1,110 @@
 #!/usr/bin/env node
 /**
- * Minimal the analyzer CLI: the debug entry that runs the full pipeline and prints the
- * Summary as JSON. the renderer replaces this with the multi-section renderer + subcommands.
+ * The full the contract CLI surface. Replaces the analyzer's --json-only stub.
  *
- * Supported now (a deliberate subset of the surface):
- *   --json         print the Summary as JSON (the only output mode in the analyzer)
- *   --days N       window (default 90)
- *   --all-time     ignore the window (whole corpus)
- *   --project P    restrict to one project (cwd path or encoded dir name)
- *   --price SPEC   per-model base-price override, e.g. "opus=5,sonnet=3"
+ *   npx cache-cash                 full multi-section checkup
+ *   npx cache-cash card            section box + top Wrapped line
+ *   npx cache-cash enable          confirmed 1h-TTL enable flow (the contract stub for now)
+ *   npx cache-cash revert          confirmed 5m-TTL revert flow (the contract stub for now)
+ *   npx cache-cash verify          post-enable TTL check (the contract stub for now)
+ *   npx cache-cash recheck         baseline comparison (the contract stub for now)
+ *
+ *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
+ *   --no-color · --all-time · --json · --md · --compact · --explain
  *
  * Exit codes: 0 ok · 1 no transcripts found · 2 parse/internal error.
+ * `--json` never prompts (the contract law).
+ *
+ * TTY-ness is decided ONCE, here, up front (module contract) and threaded through every
+ * render call as `opts.tty` — render.ts and format.ts never call
+ * process.stdout.isTTY themselves.
  */
 
+import { createInterface } from "node:readline";
 import { run } from "./pipeline.js";
 import { parsePriceOverride } from "./pricing.js";
+import { applyEnable, applyRevert, runRecheck, runVerify } from "./actions.js";
+import {
+  checkupLines,
+  decideEnding,
+  gapBars,
+  numberBox,
+  pickLoadingPun,
+  renderAmbiguousNotice,
+  renderCard,
+  renderCompact,
+  renderEnding,
+  renderExplain,
+  renderFull,
+  renderMarkdown,
+  scanCounterLine,
+  shareRail,
+  trustLine,
+  wrappedLines,
+} from "./render.js";
+import { makeInk, makeSym } from "./format.js";
+import type { Branch, Summary } from "./types.js";
+
+// ------------------------------------------------------------------ argv
+
+type Subcommand = "checkup" | "card" | "enable" | "revert" | "verify" | "recheck";
 
 interface Args {
-  json: boolean;
+  subcommand: Subcommand;
   days: number | null;
   allTime: boolean;
   project?: string;
   overrides?: Record<string, number>;
+  yes: boolean;
+  noColor: boolean;
+  json: boolean;
+  md: boolean;
+  compact: boolean;
+  explain: boolean;
 }
 
+const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck"]);
+
 function parseArgs(argv: string[]): Args {
-  const args: Args = { json: false, days: 90, allTime: false };
+  const args: Args = {
+    subcommand: "checkup",
+    days: 90,
+    allTime: false,
+    yes: false,
+    noColor: false,
+    json: false,
+    md: false,
+    compact: false,
+    explain: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    if (i === 0 && !a.startsWith("-") && SUBCOMMANDS.has(a as Subcommand)) {
+      args.subcommand = a as Subcommand;
+      continue;
+    }
     switch (a) {
       case "--json":
         args.json = true;
         break;
+      case "--md":
+        args.md = true;
+        break;
+      case "--compact":
+        args.compact = true;
+        break;
+      case "--explain":
+        args.explain = true;
+        break;
       case "--all-time":
         args.allTime = true;
+        break;
+      case "--yes":
+      case "-y":
+        args.yes = true;
+        break;
+      case "--no-color":
+        args.noColor = true;
         break;
       case "--days": {
         const v = Number(argv[++i]);
@@ -47,34 +118,276 @@ function parseArgs(argv: string[]): Args {
         args.overrides = parsePriceOverride(argv[++i] ?? "");
         break;
       default:
-        // ignore unknown flags in the analyzer (the renderer owns the full parser)
+        // Unknown flags are ignored rather than fatal — a screenshot tool
+        // shouldn't crash on a typo'd flag; --json output is still valid.
         break;
     }
   }
   return args;
 }
 
+// -------------------------------------------------------------------- tty
+
+/**
+ * TTY-ness, decided once (module contract). Non-TTY (piped, redirected), CI=1, --no-color,
+ * or --json all force the plain/non-interactive path. `--json` additionally
+ * never prompts, per S3.
+ */
+function isInteractiveTty(args: Args): boolean {
+  if (args.json) return false;
+  if (process.env.CI) return false;
+  if (!process.stdout.isTTY) return false;
+  return true;
+}
+
+function useColor(args: Args, tty: boolean): boolean {
+  if (args.noColor) return false;
+  if (process.env.CI) return false;
+  return tty;
+}
+
+// ------------------------------------------------------------- prompt/ask
+
+/** A single [y/N]-style prompt on stdin. Never used on transcript files — stdin only. */
+function promptYesNo(question: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
+  });
+}
+
+/** The one interactive branch-ambiguity question (the design: "subscription or API/Bedrock/Vertex?"). */
+function promptBranch(): Promise<Branch> {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(
+      "cache-cash: couldn't tell how you pay from transcripts or settings.\n" +
+        "How do you pay for Claude Code — (s)ubscription or (a)PI/Bedrock/Vertex? [s/a] ",
+      (answer) => {
+        rl.close();
+        const a = answer.trim().toLowerCase();
+        resolve(a.startsWith("a") ? "api-5m" : "subscription");
+      },
+    );
+  });
+}
+
+// ------------------------------------------------------------------ main
+
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
-  const result = await run({
+  const tty = isInteractiveTty(args);
+  const color = useColor(args, tty);
+  const ink = makeInk(color);
+  // ascii-ness tracks TTY-ness only (S5: non-TTY/CI -> ASCII), never
+  // --no-color on its own — --no-color strips color but keeps Unicode box
+  // chars on a real TTY, per RenderOptions.noColor's "independent of TTY" doc.
+  const sym = makeSym(!tty);
+
+  // Live per-project scan counter (section, TTY only) needs the run to report
+  // progress; run() itself is a single async call (no progress callback in
+  // S2), so on huge corpora (~4s/21.7k files per the analyzer notes) we print the
+  // trust line + a one-shot loading pun immediately, then the real result
+  // once run() resolves. This satisfies "the wait is part of the demo"
+  // without needing a progress callback contracts into the analyzer's pipeline.
+  if (tty && args.subcommand === "checkup") {
+    process.stdout.write(trustLine(ink, sym) + "\n");
+    process.stdout.write(scanCounterLine(0, 1, pickLoadingPun(), ink, sym) + "\n");
+  }
+
+  // Always resolve with jsonMode:true internally first so we get the HONEST
+  // branch (including a true "ambiguous" verdict) regardless of the user's
+  // requested output mode — see verdict.ts's jsonMode-gated detectBranch.
+  const baseResult = await run({
     project: args.project,
-    days: args.days,
+    days: args.allTime ? null : args.days,
     allTime: args.allTime,
-    jsonMode: args.json,
+    jsonMode: true,
     overrides: args.overrides,
   });
 
-  if (result.code === 1) {
+  if (baseResult.code === 1) {
     process.stderr.write("No transcripts found under ~/.claude/projects\n");
     return 1;
   }
-  if (!result.summary) {
+  if (!baseResult.summary) {
     process.stderr.write("Internal error: no summary produced\n");
     return 2;
   }
 
-  // the analyzer only speaks JSON. the renderer adds pretty/compact/md.
-  process.stdout.write(JSON.stringify(result.summary, null, 2) + "\n");
+  let summary = baseResult.summary;
+
+  if (summary.branch === "ambiguous") {
+    if (args.json) {
+      // --json never prompts (module contract) — report ambiguous as-is.
+      process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+      return 0;
+    }
+    if (tty) {
+      const answer = await promptBranch();
+      const resolved = await run({
+        project: args.project,
+        days: args.allTime ? null : args.days,
+        allTime: args.allTime,
+        jsonMode: false,
+        overrides: args.overrides,
+        branchOverride: answer,
+      });
+      if (!resolved.summary) {
+        process.stderr.write("Internal error: no summary produced\n");
+        return 2;
+      }
+      summary = resolved.summary;
+    } else {
+      // Non-TTY, non-json (e.g. piped to `cat`): can't ask, don't guess wrong
+      // silently — print the honest ambiguous notice and stop.
+      process.stdout.write(renderAmbiguousNotice() + "\n");
+      return 0;
+    }
+  }
+
+  return await dispatch(args, summary, { tty, color });
+}
+
+async function dispatch(
+  args: Args,
+  summary: Summary,
+  renderOpts: { tty: boolean; color: boolean },
+): Promise<number> {
+  const opts = { tty: renderOpts.tty, noColor: !renderOpts.color };
+
+  // --json always wins (stable machine-readable schema, S3).
+  if (args.json) {
+    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+    return 0;
+  }
+
+  switch (args.subcommand) {
+    case "card":
+      process.stdout.write(renderCard(summary, opts) + "\n");
+      return 0;
+
+    case "enable": {
+      const res = applyEnable();
+      process.stdout.write(res.message.join("\n") + "\n");
+      return 0;
+    }
+
+    case "revert": {
+      const res = applyRevert();
+      process.stdout.write(res.message.join("\n") + "\n");
+      return 0;
+    }
+
+    case "verify": {
+      const res = runVerify();
+      process.stdout.write(res.message.join("\n") + "\n");
+      return 0;
+    }
+
+    case "recheck": {
+      const res = runRecheck();
+      process.stdout.write(res.message.join("\n") + "\n");
+      return 0;
+    }
+
+    case "checkup":
+    default:
+      return await renderCheckup(args, summary, opts);
+  }
+}
+
+/** The default multi-section checkup: --md / --compact / --explain / full (TTY staggered or plain). */
+async function renderCheckup(
+  args: Args,
+  summary: Summary,
+  opts: { tty: boolean; noColor: boolean },
+): Promise<number> {
+  if (args.md) {
+    process.stdout.write(renderMarkdown(summary) + "\n");
+    return 0;
+  }
+  if (args.compact) {
+    process.stdout.write(renderCompact(summary, opts) + "\n");
+    return 0;
+  }
+  if (args.explain) {
+    process.stdout.write(renderExplain(summary) + "\n");
+    return 0;
+  }
+
+  if (!opts.tty) {
+    // Plain ASCII, no stagger, no in-place updates, single shot (module contract).
+    const full = renderFull(summary, opts);
+    process.stdout.write(full.lines.join("\n") + "\n");
+    return await maybeConsentFromEnding(args, summary, full.needsConsent, full.consentVerb);
+  }
+
+  // TTY path: staggered reveal of beats 0-1, then the rest prints normally.
+  // Never clears the screen at any point (module contract).
+  const ink = makeInk(!opts.noColor);
+  // Reached only when opts.tty is true (see the !opts.tty branch above), so
+  // this is always the Unicode table — ascii-ness tracks TTY-ness (module contract).
+  const sym = makeSym(false);
+  await staggerPrint(checkupLines(summary, ink, sym));
+  process.stdout.write("\n" + numberBox(summary, ink, sym) + "\n\n");
+  process.stdout.write(gapBars(summary, ink, false, sym).join("\n") + "\n\n");
+  process.stdout.write(wrappedLines(summary, ink, sym).join("\n") + "\n\n");
+
+  const kind = decideEnding(summary);
+  const ending = renderEnding(summary, kind, ink, sym);
+  process.stdout.write(ending.lines.join("\n") + "\n\n");
+  process.stdout.write(shareRail(ink, sym).join("\n") + "\n");
+
+  return await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
+}
+
+/** ~150ms stagger between CHECKUP's ✓✓⚠ lines, TTY only (module contract). */
+async function staggerPrint(lines: string[]): Promise<void> {
+  for (const line of lines) {
+    process.stdout.write(line + "\n");
+    await sleep(150);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function maybeConsentFromEnding(
+  args: Args,
+  _summary: Summary,
+  needsConsent: boolean,
+  consentVerb: "enable" | "revert" | undefined,
+): Promise<number> {
+  if (!needsConsent || !consentVerb) return 0;
+
+  // --json never prompts and never reaches here (handled earlier). Non-TTY
+  // (piped) also never prompts: print the manual instruction and exit 0,
+  // consistent with "no interactive prompts in agents" (the standing rules)
+  // and S3's non-prompting contract for non-interactive contexts.
+  const interactive = process.stdout.isTTY && !process.env.CI;
+  const verbLabel = consentVerb === "enable" ? "Enable 1h now" : "Revert to 5m now";
+
+  let confirmed = args.yes;
+  if (!confirmed && interactive) {
+    confirmed = await promptYesNo(`${verbLabel}? [y/N] `);
+  }
+
+  if (!confirmed) {
+    if (!interactive && !args.yes) {
+      process.stdout.write(
+        `\n(non-interactive: pass --yes to apply, or run \`cache-cash ${consentVerb}\` from a terminal)\n`,
+      );
+    }
+    return 0;
+  }
+
+  const res = consentVerb === "enable" ? applyEnable() : applyRevert();
+  process.stdout.write("\n" + res.message.join("\n") + "\n");
   return 0;
 }
 

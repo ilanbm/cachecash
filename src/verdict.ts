@@ -166,6 +166,17 @@ export interface BuildSummaryInput {
   hints: EnvHints;
   jsonMode: boolean;
   ctx?: PriceCtx;
+  /**
+   * the renderer contracts addition (additive, backward-compatible): when the CLI has
+   * already resolved an "ambiguous" branch via its one interactive question
+   * ("subscription or API?"), it passes the user's confirmed answer here so
+   * buildSummary skips detectBranch's guess entirely. Branch detection logic
+   * itself stays owned by verdict.ts (this file) — the CLI never re-derives
+   * it, it only supplies the human's direct answer when the analyzer itself
+   * couldn't decide. Undefined (the default) preserves all existing
+   * detectBranch behavior byte-for-byte.
+   */
+  branchOverride?: Branch;
 }
 
 const DAY_S = 86400;
@@ -181,7 +192,12 @@ export function buildSummary(input: BuildSummaryInput): Summary {
       : 0;
 
   const ratio = recoverableRatio(agg.buckets);
-  const branch = detectBranch(hints, agg.regime, jsonMode);
+  const branch = input.branchOverride
+    ? {
+        branch: input.branchOverride,
+        evidence: [...detectBranch(hints, agg.regime, jsonMode).evidence, `=> user-confirmed: ${input.branchOverride} (answered the interactive branch question)`],
+      }
+    : detectBranch(hints, agg.regime, jsonMode);
 
   // Reality check window: min(7, requested) so it reflects the *recent* regime.
   const realityWindow = windowDays !== null ? Math.min(7, windowDays) : 7;
