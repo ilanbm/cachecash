@@ -2,55 +2,47 @@
 
 [![CI](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml/badge.svg)](https://github.com/m8t-labs/cachecash/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/%40m8t-labs%2Fcache-cash.svg)](https://www.npmjs.com/package/@m8t-labs/cache-cash)
+![node](https://img.shields.io/badge/node-%E2%89%A518-success)
+![dependencies](https://img.shields.io/badge/dependencies-0-success)
+![license](https://img.shields.io/badge/license-MIT-blue)
 
 **Finds the money your Claude Code cache is leaking.**
 
-One `npx` run reads your local Claude Code transcripts, computes what the prompt
-cache saved you and what it *leaked* — attributed to specific causes — and, for
-API-billed users still on the 5-minute default, tells you whether the 1-hour
-cache TTL would save you money and enables it with one confirmation.
-
-```
-+-------------------------------------------------------+
-|                      cache-cash                       |
-|                                                       |
-|                 YOUR 1H CACHE RECEIPT                 |
-|         saved ~$2,517.98-eq vs 5m (last 90d)          |
-|                                                       |
-|             efficiency score: 98.5 / 100              |
-+-------------------------------------------------------+
-
-  > Model switches invalidated 68.9M tokens of cache ($505.56-eq).
-
-share: npx @m8t-labs/cache-cash --compact  -  #cachecash
-```
-
-<sub>`npx @m8t-labs/cache-cash card` on the author's real 591-session corpus (subscription branch — a subscriber's cache is already on 1h, so this is a receipt, not a recommendation). On a real terminal the box is drawn with Unicode; the ASCII form above is what pastes cleanly into a code block. Your numbers are your own.</sub>
+![cache-cash receipt card](./assets/card.svg)
 
 ```bash
 npx @m8t-labs/cache-cash
 ```
 
-No install, no account, no config. Node 18+.
+No install, no account, no config. Node 18+. (The installed command, once you
+do install it, is plain `cache-cash`.)
 
 > **100% local.** Reads token counts and timestamps only. No conversation content. No network.
 
-That is the whole security model. `cache-cash` opens the JSONL transcripts under
-`~/.claude/projects`, reads the `usage` token counts and the timestamps, and does
-arithmetic. It never reads your prompts or Claude's replies, never phones home,
-and has zero runtime dependencies (the entire tool is one `tsc`-compiled
-zero-dependency TypeScript CLI — nothing to audit but the code itself).
+Zero runtime dependencies, too — the entire tool is one `tsc`-compiled TypeScript
+CLI, nothing to audit but the code itself.
+
+- **API-billed, still on the 5-minute default?** The recommender: "you left ~$X
+  on the table over the last 90 days — one line recovers it. Enable 1h now? [y/N]"
+- **API-billed, already on the 1-hour TTL?** The validator: confirms 1h is still
+  winning, or tells you to revert if your pattern shifted back toward 5m.
+- **On a subscription?** The receipt: what your (already-automatic) 1h cache
+  saved you, plus a leak table for what's still eating your quota.
+
+Below the break-even on any branch, you get **"Certified optimal"** instead of a
+nag — that's also a screenshot worth sharing.
+
+> In March 2026, the Claude API silently downgraded some 1-hour cache writes to
+> 5-minute. Settings said 1h; transcripts billed 5m. `cache-cash` reads the TTL
+> you *received*, never the one you set.
 
 ---
 
-## How it works (three sentences)
+## How it works
 
-Every cache-write in your transcripts is a token you paid a **markup** to store
-(1.25× base input on the 5-minute TTL, 2× on the 1-hour TTL). `cache-cash`
-classifies each write by the **gap since the previous turn in that session** —
-if the gap fits inside the TTL the write was cheap re-use, if it fell just
-outside the TTL window (5–60 min) it was an avoidable *re-warm*, and if it was a
-cold session start it was unavoidable. It then prices a **symmetric
+Every cache-write is a token you paid a **markup** to store (1.25× base input on
+the 5-minute TTL, 2× on the 1-hour TTL). `cache-cash` buckets each write by the
+gap since the previous turn in that session. Then it prices a **symmetric
 counterfactual** — what a fully-5m world and a fully-1h world would each have
 billed on *your* tokens — so the verdict is a threshold you cross, not a guess.
 
@@ -63,34 +55,11 @@ billed on *your* tokens — so the verdict is a threshold you cross, not a guess
 The one number that decides the recommendation is **R/C** — the share of your
 cache-write tokens that fell in the recoverable bucket. Above **39.5%**, the
 1-hour TTL is cheaper for your pattern; below it, the 5-minute default already
-wins. (That 39.5% is not a vibe — it is `(2 − 1.25) / (2 − 0.1)`, derived in
-[METHODOLOGY.md](./METHODOLOGY.md).)
+wins. Not a vibe — it's `(2 − 1.25) / (2 − 0.1)`, derived in
+[METHODOLOGY.md](./METHODOLOGY.md).
 
-Everything above is computed only from billed token counts. Run `npx @m8t-labs/cache-cash
---explain` to see every formula with *your* numbers substituted in.
-
-## What you get — three endings, one per billing model
-
-`cache-cash` auto-detects how you pay (from your settings env flags, provider
-hints, and the observed cache regime in your transcripts) and renders one of
-three endings:
-
-- **API-billed, on the 5-minute default → the recommender.** Gap table + your
-  R/C vs the 39.5% break-even + the counterfactual delta ("switching to 1h saves
-  ~$X per 30 days", or "5m is already optimal for you — 1h would cost $Y more").
-  If 1h wins, it offers to enable it: `Enable 1h now? [y/N]`.
-- **API-billed, already on 1h → the validator.** "Keeping 1h saves ~$X vs 5m",
-  or, if your pattern actually favors 5m, "revert — 5m is cheaper for you", with
-  a confirmed revert flow.
-- **Subscription → the receipt.** Subscribers get the 1-hour TTL automatically,
-  so there is nothing to enable. Instead you get a receipt: "your 1h cache saved
-  you ~$X-equivalent vs a 5m world", a leak table ranked by quota impact, and
-  your Cache Wrapped. (Subscriber dollars are labeled **"$-equivalent (API list
-  rates)"** — the subscription limit formula is undisclosed, so we never tell a
-  subscriber they "saved $"; see the FAQ.)
-
-Below the break-even, you get a **"Certified optimal"** card instead of a nag —
-that is also a screenshot worth sharing.
+Run `npx @m8t-labs/cache-cash --explain` to see every formula with *your*
+numbers substituted in.
 
 ## The fix, and how to trust it
 
@@ -133,7 +102,7 @@ cache writes to 5-minute for a stretch — settings said 1h, transcripts billed
 5m. Anyone reasoning from their *config* rather than their *transcripts* was
 quietly wrong for weeks.
 
-The sharpest illustration we know of: a serious community effort once modeled
+The sharpest illustration we know of: a public community backtest once modeled
 cache-keepalive strategies against an *assumed* TTL. When the models were
 finally checked against real billed tokens, **six carefully-modeled strategies
 all lost to a one-line heuristic** — and part of the modeling had rested on a
@@ -141,6 +110,30 @@ TTL that the server wasn't actually honoring. The lesson `cache-cash`
 takes from that story: **measure the TTL you received, don't trust the one you set.**
 That is why every checkup leads with the reality-check line, and why the
 regression *watchdog* (below) is the roadmap's flagship.
+
+## Use it inside Claude Code
+
+`cache-cash` also ships as a Claude Code plugin, so you can run the checkup
+conversationally instead of from a terminal:
+
+```
+/plugin marketplace add m8t-labs/cachecash
+```
+
+Then just ask — "am I leaking money on cache?" or "run cache-cash" — and the
+agent runs the analyzer, narrates the number, the gap breakdown, and the
+verdict in plain language. It never edits `settings.json` on your behalf: it
+only ever surfaces the `enable`/`revert` command and asks you to run it — the
+tool's own confirmation prompt is the only write path, same as the CLI.
+
+## Share your card
+
+```bash
+npx @m8t-labs/cache-cash card
+```
+
+Post it with #cachecash, or drop it in the pinned Discussion:
+<!-- DISCUSSION_URL -->
 
 ## Other output modes
 
@@ -171,6 +164,12 @@ and reproducible*, but it is not a bill.
 Yes. `ENABLE_PROMPT_CACHING_1H` is an API/Bedrock/Vertex/Foundry feature, so the
 enable recommendation applies to all of them. The analyzer reads the same
 transcript format regardless of provider.
+
+**Does it work with Codex / OpenAI?**
+There's nothing for `cache-cash` to advise there. OpenAI's prompt caching is
+automatic — writes cost nothing extra, cached reads are discounted, and
+retention tiers are priced identically — so there's no 5m-vs-1h decision to
+make. A cache-health view for other CLIs is on the roadmap.
 
 **Is the efficiency score comparable between people?**
 Only within a `score_version`. This is `score_version: 1` (printed in `--json`
