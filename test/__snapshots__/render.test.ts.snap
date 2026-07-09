@@ -23,9 +23,9 @@ share: npx cache-cash --compact  -  #cachecash"
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 3`] = `
 "cache-cash - score 98.5/100 (excellent)
 R/C = 13.7% recoverable (break-even 39.5%) - 1h is already yours OK
-biggest miss: 612K-token re-warm - $7.03 in one turn
-worst day: 2026-06-10 - $49.21 leaked
-  > Model switches invalidated 70.3M tokens of cache ($513.86).
+biggest miss: 612K-token re-warm - $7.03-eq in one turn
+worst day: 2026-06-10 - $49.21-eq leaked
+  > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
 share: npx cache-cash --compact  -  #cachecash"
 `;
@@ -136,8 +136,8 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
 | Compaction rewrites | 189,887 | $1.93 | 0.0% |
 | Subagent 5m overhead _(info)_ | 0 | $0.00 | 0.0% |
 
-**Biggest single miss:** 612K-token re-warm — $7.03 in one turn.
-**Worst day:** 2026-06-10 — $49.21 leaked.
+**Biggest single miss:** 612K-token re-warm — $7.03-eq in one turn.
+**Worst day:** 2026-06-10 — $49.21-eq leaked.
 
 **Verdict:** 1h already yours (subscription) ✓ — your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world in the last 90 days.
 Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this window.
@@ -185,7 +185,7 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
 |             efficiency score: 98.5 / 100              |
 +-------------------------------------------------------+
 
-  > Model switches invalidated 70.3M tokens of cache ($513.86).
+  > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
 
 share: npx cache-cash --compact  -  #cachecash"
 `;
@@ -294,7 +294,7 @@ exports[`snapshots (ANSI-stripped) > ending C (subscriber receipt) full render 1
 CHECKUP
   OK scanned 590 sessions, 43,774 turns (last 90 days)
   OK TTL received (last 7d): 1h OK
-  [!] ttl-expiry re-warms: 102.8M tokens ($618.60)
+  [!] ttl-expiry re-warms: 102.8M tokens ($618.60-eq)
 
 +-------------------------------------------------------+
 |                      cache-cash                       |
@@ -313,12 +313,12 @@ GAP BREAKDOWN (cache-write tokens by re-warm gap)
 R/C = 13.7% recoverable (break-even 39.5%) - 1h is already yours OK
 
 YOUR CACHE, WRAPPED
-  > Model switches invalidated 70.3M tokens of cache ($513.86).
+  > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
-  > Worst day: 2026-06-10 leaked $49.21 (7.6M tokens) to expired cache.
+  > Worst day: 2026-06-10 leaked $49.21-eq (7.6M tokens) to expired cache.
   > Your biggest session wrote 21.2M tokens of cache in web-dashboard.
-  > Your biggest single miss: a 612K-token re-warm in orders-api - $7.03 in one
-    turn.
+  > Your biggest single miss: a 612K-token re-warm in orders-api - $7.03-eq in
+    one turn.
 
 YOUR RECEIPT
 

@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { stripAnsi, boxWidth, makeInk, makeSym } from "../src/format.js";
 import {
+  checkupLines,
   decideEnding,
   numberBox,
   renderCard,
@@ -16,6 +17,7 @@ import {
   renderExplain,
   renderFull,
   renderMarkdown,
+  wrappedLines,
 } from "../src/render.js";
 import {
   fixtureAllZeroLeaks,
@@ -299,6 +301,51 @@ describe("section box is ending-aware (post-review fix #3)", () => {
     // --compact and --md for C use the neutral high-score label instead.
     expect(renderCompact(fixtureEndingCReceipt, NON_TTY)).toContain("(excellent)");
     expect(renderMarkdown(fixtureEndingCReceipt)).not.toContain("certified optimal");
+  });
+});
+
+describe("currency separation on shared surfaces (post-review fix round 2)", () => {
+  // On the subscriber branch every waste $-figure must carry the terse "-eq"
+  // suffix — card, --compact, WRAPPED lines, and the CHECKUP record-scratch
+  // line previously showed bare "$" while the QUOTA-LEAK LIST said "$X-eq"
+  // for the same figures (internal inconsistency + design-decision-#7 gap on
+  // exactly the most-shared surfaces). API branches stay bare "$".
+  const sub = fixtureEndingCReceipt; // currency: "USD-equivalent (API list rates)"
+  const api = fixtureEndingAEnable; // currency: "USD"
+
+  it("subscriber: checkup record-scratch line carries -eq", () => {
+    const text = stripAnsi(checkupLines(sub, makeInk(false), makeSym(true)).join("\n"));
+    expect(text).toContain("($618.60-eq)");
+  });
+  it("subscriber: every wrapped-insight $ figure carries -eq", () => {
+    const text = stripAnsi(wrappedLines(sub, makeInk(false), makeSym(true)).join("\n"));
+    // every $ amount in the wrapped section is followed by -eq
+    const bare = text.match(/\$[\d,]+\.\d{2}(?!-eq)/g) ?? [];
+    expect(bare, `bare $ figures found in subscriber wrapped lines: ${JSON.stringify(bare)}`).toEqual([]);
+    expect(text).toMatch(/\$[\d,]+\.\d{2}-eq/);
+  });
+  it("subscriber: card and --compact carry -eq on their $ figures", () => {
+    for (const out of [renderCard(sub, NON_TTY), renderCompact(sub, NON_TTY)]) {
+      const text = stripAnsi(out);
+      const bare = text.match(/\$[\d,]+\.\d{2}(?!-eq)/g) ?? [];
+      expect(bare, `bare $ figures found: ${JSON.stringify(bare)}`).toEqual([]);
+      expect(text).toMatch(/\$[\d,]+\.\d{2}-eq/);
+    }
+  });
+  it("subscriber: --md biggest-miss/worst-day match its own $-eq table header", () => {
+    const md = renderMarkdown(sub);
+    expect(md).toMatch(/\*\*Biggest single miss:\*\*.*-eq in one turn\./);
+    expect(md).toMatch(/\*\*Worst day:\*\*.*-eq leaked\./);
+  });
+  it("API branch: no -eq anywhere on card/compact/full render", () => {
+    for (const out of [
+      renderCard(api, NON_TTY),
+      renderCompact(api, NON_TTY),
+      renderFull(api, NON_TTY).lines.join("\n"),
+      renderMarkdown(api),
+    ]) {
+      expect(stripAnsi(out)).not.toContain("-eq");
+    }
   });
 });
 

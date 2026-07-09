@@ -79,6 +79,22 @@ function wrapTerm(text: string, indent = ""): string[] {
   return segs.map((s, i) => (i === 0 ? s : indent + s));
 }
 
+/**
+ * Currency-aware terse dollar formatter (a locked design choice, post-review
+ * fix round 2): on subscriber branches (currency !== "USD") every waste/
+ * saving figure carries a "-eq" suffix — including the space-constrained
+ * shared surfaces (card, --compact, WRAPPED lines, the CHECKUP record-scratch
+ * line) that previously showed bare "$" while the QUOTA-LEAK LIST said
+ * "$X-eq" for the same figures. API branches stay bare "$". The full
+ * "USD-equivalent (API list rates)" phrase remains on the prose lines that
+ * already carry it (receipt headline, vs-uncached, --md verdict); this
+ * helper is the terse form only.
+ */
+function fmtDollarsEq(s: Summary, n: number, decimals = 2): string {
+  const base = fmtDollars(n, decimals);
+  return s.currency === "USD" ? base : `${base}-eq`;
+}
+
 // ------------------------------------------------------------- ending logic
 
 /**
@@ -144,7 +160,7 @@ export function checkupLines(s: Summary, ink: Ink, sym: Sym): string[] {
   lines.push(`  ${ink.green(sym.check)} TTL received (last ${s.ttlRealityCheck.windowDays}d): ${s.ttlRealityCheck.received}${s.ttlRealityCheck.regime !== "none" ? ` ${sym.check}` : ""}`);
   const leakWarn = s.leaks.find((l) => !l.informational && l.dollars > 0);
   if (leakWarn) {
-    lines.push(`  ${ink.yellow(sym.warn)} ${shortLeakLabel(leakWarn.label).toLowerCase()}: ${fmtTokensCompact(leakWarn.tokens)} tokens (${fmtDollars(leakWarn.dollars)})`);
+    lines.push(`  ${ink.yellow(sym.warn)} ${shortLeakLabel(leakWarn.label).toLowerCase()}: ${fmtTokensCompact(leakWarn.tokens)} tokens (${fmtDollarsEq(s, leakWarn.dollars)})`);
   } else {
     lines.push(`  ${ink.green(sym.check)} no attributable leaks found this window`);
   }
@@ -272,14 +288,14 @@ export function wrappedLines(s: Summary, ink: Ink, sym: Sym): string[] {
     const m = s.biggestMiss;
     cands.push({
       extremity: m.dollars * 1000, // dollars dominate ranking; biggest single event first
-      text: `Your biggest single miss: a ${fmtTokensCompact(m.tokens)}-token re-warm in ${shortProject(m.project)} ${sym.dash} ${fmtDollars(m.dollars)} in one turn.`,
+      text: `Your biggest single miss: a ${fmtTokensCompact(m.tokens)}-token re-warm in ${shortProject(m.project)} ${sym.dash} ${fmtDollarsEq(s, m.dollars)} in one turn.`,
     });
   }
   if (s.worstDay) {
     const d = s.worstDay;
     cands.push({
       extremity: d.dollars * 900,
-      text: `Worst day: ${d.day} leaked ${fmtDollars(d.dollars)} (${fmtTokensCompact(d.tokens)} tokens) to expired cache.`,
+      text: `Worst day: ${d.day} leaked ${fmtDollarsEq(s, d.dollars)} (${fmtTokensCompact(d.tokens)} tokens) to expired cache.`,
     });
   }
   if (w.streakDays >= 3) {
@@ -304,14 +320,14 @@ export function wrappedLines(s: Summary, ink: Ink, sym: Sym): string[] {
   if (modelSwitch && modelSwitch.dollars > 0) {
     cands.push({
       extremity: modelSwitch.dollars * 800,
-      text: `Model switches invalidated ${fmtTokensCompact(modelSwitch.tokens)} tokens of cache (${fmtDollars(modelSwitch.dollars)}).`,
+      text: `Model switches invalidated ${fmtTokensCompact(modelSwitch.tokens)} tokens of cache (${fmtDollarsEq(s, modelSwitch.dollars)}).`,
     });
   }
   const compaction = s.leaks.find((l) => l.cause === "compaction-rewrite");
   if (compaction && compaction.dollars > 0) {
     cands.push({
       extremity: compaction.dollars * 700,
-      text: `Compaction rewrites cost ${fmtDollars(compaction.dollars)} across ${fmtTokensCompact(compaction.tokens)} tokens this window.`,
+      text: `Compaction rewrites cost ${fmtDollarsEq(s, compaction.dollars)} across ${fmtTokensCompact(compaction.tokens)} tokens this window.`,
     });
   }
 
@@ -637,11 +653,11 @@ export function renderCompact(s: Summary, opts: RenderOptions): string {
   lines.push(verdictLine(s, ink, sym));
   if (s.biggestMiss) {
     lines.push(
-      `biggest miss: ${fmtTokensCompact(s.biggestMiss.tokens)}-token re-warm ${sym.dash} ${fmtDollars(s.biggestMiss.dollars)} in one turn`,
+      `biggest miss: ${fmtTokensCompact(s.biggestMiss.tokens)}-token re-warm ${sym.dash} ${fmtDollarsEq(s, s.biggestMiss.dollars)} in one turn`,
     );
   }
   if (s.worstDay) {
-    lines.push(`worst day: ${s.worstDay.day} ${sym.dash} ${fmtDollars(s.worstDay.dollars)} leaked`);
+    lines.push(`worst day: ${s.worstDay.day} ${sym.dash} ${fmtDollarsEq(s, s.worstDay.dollars)} leaked`);
   }
   const wl = wrappedLines(s, ink, sym).slice(1, 3);
   lines.push(...wl);
@@ -674,10 +690,11 @@ export function renderMarkdown(s: Summary): string {
   }
   lines.push("");
   if (s.biggestMiss) {
-    lines.push(`**Biggest single miss:** ${fmtTokensCompact(s.biggestMiss.tokens)}-token re-warm — ${fmtDollars(s.biggestMiss.dollars)} in one turn.`);
+    // Same currency discipline as the table header two lines up ($ vs $-eq).
+    lines.push(`**Biggest single miss:** ${fmtTokensCompact(s.biggestMiss.tokens)}-token re-warm — ${fmtDollarsEq(s, s.biggestMiss.dollars)} in one turn.`);
   }
   if (s.worstDay) {
-    lines.push(`**Worst day:** ${s.worstDay.day} — ${fmtDollars(s.worstDay.dollars)} leaked.`);
+    lines.push(`**Worst day:** ${s.worstDay.day} — ${fmtDollarsEq(s, s.worstDay.dollars)} leaked.`);
   }
   lines.push("");
   if (kind === "A-enable") {
