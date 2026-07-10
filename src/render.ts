@@ -10,6 +10,13 @@
  *   ending (recommender: consent prompt · validator: certificate · receipt)
  *   share rail
  *
+ * This is renderFull()'s order, used byte-for-byte by the non-TTY/CI path
+ * (box included, up top). The TTY-interactive checkup (cli.ts's
+ * renderCheckup) reuses these same section functions directly but SKIPS THE
+ * BOX here (v1.0.2) — it prints only once, at the very end, as the closing
+ * card (a renderCard() call after the ending) so the tail of the terminal is
+ * the one screenshot-worthy frame.
+ *
  * Plus alternate render modes: card (score box + top Wrapped line), --md
  * (plain markdown, zero ANSI), --compact (~15 lines), --explain (formulas
  * with the user's own numbers substituted).

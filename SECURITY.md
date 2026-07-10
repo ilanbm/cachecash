@@ -12,7 +12,8 @@ not a feature request.
 The optional share prompt (v1.0.1, interactive terminal runs only) stays within
 those properties: it launches *your own browser* locally with a prefilled post
 you review before sending, or writes to your local clipboard — the process
-itself still performs no network I/O, and the prompt is one-time and skippable.
+itself still performs no network I/O. The prompt appears on interactive runs
+only and is skippable; `--no-share` or `CACHE_REFUND_NO_SHARE=1` silences it.
 
 ## Reporting a vulnerability
 

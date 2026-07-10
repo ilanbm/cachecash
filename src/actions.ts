@@ -272,15 +272,6 @@ interface BaselineFile {
   delta30d: number;
   /** Actual reconstructed spend over the enabling summary's window, for receipts math. */
   actualCostAtEnable: number;
-  /**
-   * v1.0.1 share-CTA frequency guard: set when the checkup's share prompt
-   * has been shown once on this machine (aggregate metadata only — a
-   * timestamp, never content). Lives in this file because the baseline is
-   * the one local state file cache-refund owns; readBaseline() still requires
-   * `enabled_at`, so a share-only file (recorded before any enable) is
-   * correctly NOT a recheck baseline.
-   */
-  sharePrompt?: { shownAt: string };
 }
 
 /**
@@ -291,10 +282,6 @@ interface BaselineFile {
  * re-run enable — not silent corruption of anything load-bearing).
  */
 function writeBaseline(home: string, summary: Summary): void {
-  // Preserve any pre-existing share-prompt marker (and be tolerant of a
-  // share-only file written before the first enable) — a fresh enable must
-  // never re-arm the once-per-machine share prompt.
-  const existing = readBaselineRaw(home);
   const baseline: BaselineFile = {
     enabled_at: new Date().toISOString(),
     window_days: summary.window.days,
@@ -304,7 +291,6 @@ function writeBaseline(home: string, summary: Summary): void {
     efficiencyScore: summary.efficiencyScore,
     delta30d: summary.counterfactual.delta30d,
     actualCostAtEnable: summary.counterfactual.actualCost,
-    ...(existing?.sharePrompt ? { sharePrompt: existing.sharePrompt } : {}),
   };
   mkdirSync(join(home, ".claude"), { recursive: true });
   writeFileSync(baselinePath(home), JSON.stringify(baseline, null, 2) + "\n", "utf8");
@@ -327,25 +313,6 @@ function readBaseline(home: string): BaselineFile | null {
   const parsed = readBaselineRaw(home);
   if (!parsed || typeof parsed.enabled_at !== "string") return null;
   return parsed as BaselineFile;
-}
-
-// ------------------------------------------------------- share-prompt guard
-
-/**
- * v1.0.1 share-CTA frequency guard (cli.ts consumes these two). The checkup
- * asks ONCE per machine ever; cli.ts bypasses the check (but still records)
- * at the two high-emotion re-ask moments (post-enable, positive recheck).
- * Aggregate-numbers-only discipline: the marker is a timestamp, nothing else.
- */
-export function sharePromptShown(home: string): boolean {
-  return typeof readBaselineRaw(home)?.sharePrompt?.shownAt === "string";
-}
-
-export function recordSharePromptShown(home: string): void {
-  const existing = readBaselineRaw(home) ?? {};
-  const next = { ...existing, sharePrompt: { shownAt: new Date().toISOString() } };
-  mkdirSync(join(home, ".claude"), { recursive: true });
-  writeFileSync(baselinePath(home), JSON.stringify(next, null, 2) + "\n", "utf8");
 }
 
 // ---------------------------------------------------------------- enable

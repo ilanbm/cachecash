@@ -1,7 +1,8 @@
 /**
- * Generated share-image tests (v1.0.2). The SVG writer's file IO runs against
- * an injected temp dir — never a real ~/Downloads — and the darwin PNG leg
- * uses an injected qlmanage stub, so nothing here spawns a real process.
+ * Generated share-image tests (v1.0.2: 720x720 square card, ending-aware hero
+ * block, gap bars). The SVG writer's file IO runs against an injected temp
+ * dir — never a real ~/Downloads — and the darwin PNG leg uses an injected
+ * qlmanage stub, so nothing here spawns a real process.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -17,7 +18,7 @@ import {
 
 const PROJECT_LEAKS = ["orders-api", "web-dashboard", "widgetco", "quietco", "-Users-"];
 
-describe("buildCardSvg", () => {
+describe("buildCardSvg (v1.0.2: 720x720 square card)", () => {
   it("is well-formed XML: single svg root, balanced text tags, no raw ampersands", () => {
     for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
       const svg = buildCardSvg(s);
@@ -30,32 +31,101 @@ describe("buildCardSvg", () => {
       expect(svg).not.toMatch(/&(?!(amp|lt|gt|quot|apos|#\d+);)/);
     }
   });
-  it("substitutes the Summary numbers (ending C: API-value figure, score, scale)", () => {
+
+  it("is a deliberate 720x720 square canvas (kills the qlmanage padding bug)", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const svg = buildCardSvg(s);
+      expect(svg).toContain('width="720" height="720" viewBox="0 0 720 720"');
+      // no other width/height pair anywhere claims the old 720x440 shape
+      expect(svg).not.toContain('height="440"');
+    }
+  });
+
+  it("ending C: receipt hero leads with the API-value delta, green when 1h saved", () => {
     const svg = buildCardSvg(fixtureEndingCReceipt);
     expect(svg).toContain("YOUR 1H CACHE RECEIPT");
-    expect(svg).toContain("saved ≈$2,500.95 in API-value (last 90d)");
-    expect(svg).toContain("efficiency score: 98.5 / 100");
-    expect(svg).toMatch(/[\d.]+B tokens · 590 sessions/);
+    // |delta1hMinus5m| = 2500.9452... -> rounds to 2501, comma-grouped, no cents
+    expect(svg).toContain('class="t green" font-size="68" font-weight="700">$2,501<');
+    expect(svg).toContain("saved in API-value");
+    expect(svg).toContain("last 90 days");
+    expect(svg).toContain("efficiency 98.5 / 100");
+    expect(svg).toMatch(/[\d.]+B tokens/);
+    expect(svg).toContain("590 sessions");
   });
-  it("A/B endings lead with the score", () => {
-    const a = buildCardSvg(fixtureEndingAEnable);
-    expect(a).toContain("CACHE EFFICIENCY SCORE");
-    expect(a).toContain("71.2 / 100");
-    const b = buildCardSvg(fixtureEndingBOptimal);
-    expect(b).toContain("96.3 / 100");
-    expect(b).toContain("certified optimal");
+
+  it("ending A: unclaimed-refund hero, orange, no cents", () => {
+    const svg = buildCardSvg(fixtureEndingAEnable);
+    expect(svg).toContain("UNCLAIMED CACHE REFUND");
+    // |delta1hMinus5m| = 80.0 -> "$80"
+    expect(svg).toContain('class="t orange" font-size="68" font-weight="700">$80<');
+    expect(svg).toContain("left on the table");
+    expect(svg).toContain("one config line recovers it");
   });
-  it("share-safe: no project names, no -eq; brand label is cache-refund", () => {
+
+  it("ending B: certified-optimal hero is the bare score, green, unconditionally (mirrors the terminal certificate box)", () => {
+    const svg = buildCardSvg(fixtureEndingBOptimal);
+    expect(svg).toContain("CERTIFIED OPTIMAL");
+    expect(svg).toContain('class="t green" font-size="68" font-weight="700">96.3<');
+    expect(svg).toContain("the default cache setting is right for how you work");
+  });
+
+  it("dollar hero figures never carry cents (v1.0.2 rule: Math.round, comma-grouped)", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingCReceipt]) {
+      const svg = buildCardSvg(s);
+      const m = svg.match(/font-size="68" font-weight="700">([^<]+)</);
+      expect(m).not.toBeNull();
+      expect(m![1]).not.toContain(".");
+      expect(m![1]).toMatch(/^\$[\d,]+$/);
+    }
+  });
+
+  it("gap bars: widths derive from the buckets, non-negative, and <=300 (the track width)", () => {
+    const svg = buildCardSvg(fixtureEndingCReceipt);
+    const widths = [...svg.matchAll(/width="(\d+(?:\.\d+)?)" height="12" rx="6" fill="#(?:3fd68f|e0b856|949cb8)"/g)].map(
+      (m) => Number(m[1]),
+    );
+    expect(widths.length).toBe(3); // warm, recoverable, cold
+    for (const w of widths) {
+      expect(w).toBeGreaterThanOrEqual(0);
+      expect(w).toBeLessThanOrEqual(300);
+    }
+    // the three re-warm-gap percentages are one-decimal and sum to ~100%
+    const pcts = [...svg.matchAll(/class="t txt" font-size="13">([\d.]+)%<\/text>/g)].map((m) => Number(m[1]));
+    expect(pcts.length).toBe(3);
+    expect(pcts.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 0);
+  });
+
+  it("a zero bucket renders a zero-width bar, not the 6px floor (floor only applies when pct>0)", () => {
+    const zeroCold = {
+      ...fixtureEndingAEnable,
+      buckets: { ...fixtureEndingAEnable.buckets, cold: 0, warm: fixtureEndingAEnable.buckets.warm + fixtureEndingAEnable.buckets.cold },
+    };
+    const svg = buildCardSvg(zeroCold);
+    expect(svg).toContain('width="0" height="12" rx="6" fill="#949cb8"');
+  });
+
+  it("share-safe: no project names, no -eq (API-value allowed); brand text is npx cache-refund", () => {
     for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
       const svg = buildCardSvg(s);
       for (const leak of PROJECT_LEAKS) expect(svg).not.toContain(leak);
       expect(svg).not.toContain("-eq");
-      expect(svg).toContain(">cache-refund</text>");
+      expect(svg).toContain(">npx cache-refund<");
     }
-    // subscriber footer carries the API-value qualifier
-    expect(buildCardSvg(fixtureEndingCReceipt)).toContain("$ figures are API-value");
+    // subscriber footer carries the API-value qualifier; API branches don't
+    expect(buildCardSvg(fixtureEndingCReceipt)).toContain("$ figures are API-value (list rates)");
     expect(buildCardSvg(fixtureEndingAEnable)).not.toContain("$ figures are API-value");
   });
+
+  it("carries the top wrapped fact line, truncated to <=64 chars, project-free", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const svg = buildCardSvg(s);
+      const m = svg.match(/<tspan class="txt"> ([^<]*)<\/tspan>/);
+      expect(m).not.toBeNull();
+      expect(m![1].length).toBeLessThanOrEqual(64);
+      expect(m![1].length).toBeGreaterThan(0);
+    }
+  });
+
   it("escapeXml escapes all five specials", () => {
     expect(escapeXml(`a & b < c > d " e ' f`)).toBe("a &amp; b &lt; c &gt; d &quot; e &apos; f");
   });

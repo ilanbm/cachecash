@@ -152,7 +152,8 @@ npx cache-refund --explain  # every formula, your numbers substituted (METHODOLO
 
 Flags: `--days N` (default 90) · `--project <path>` (default: all projects) ·
 `--price <model=$/MTok,...>` (override pricing) · `--yes` / `-y` (skip confirm) ·
-`--no-color` · `--all-time`. Exit codes: `0` ok · `1` no transcripts found ·
+`--no-color` · `--all-time` · `--no-share` (silence the share prompt; same as
+env `CACHE_REFUND_NO_SHARE=1`). Exit codes: `0` ok · `1` no transcripts found ·
 `2` parse/internal error.
 
 ## FAQ
@@ -193,8 +194,10 @@ honest, not missing data.
 No. The CLI itself makes zero network requests, sharing included. The optional
 share prompt (interactive terminal runs only) opens *your own browser* with a
 prefilled post — text you read, and can edit or abandon, before anything is
-sent — or copies the markdown block to your local clipboard. Nothing is
-transmitted by `cache-refund`, ever, and the prompt asks once; Enter skips it.
+sent — or copies the markdown block (or the generated card image) to your
+local clipboard. Nothing is transmitted by `cache-refund`, ever. The prompt
+appears at the end of every interactive run; Enter skips it, and `--no-share`
+(or env `CACHE_REFUND_NO_SHARE=1`) silences it entirely, every time.
 
 **I think a number is wrong.**
 That is the highest-priority kind of bug report. Open a

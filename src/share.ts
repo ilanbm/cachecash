@@ -1,17 +1,23 @@
 /**
- * Share-CTA platform plumbing (v1.0.1). Zero-dep: node:child_process only.
+ * Share-CTA platform plumbing (v1.0.1, extended v1.0.2). Zero runtime deps:
+ * node:child_process + node:fs only.
  *
  * Trust line unchanged: the CLI itself makes ZERO network requests. [x]/[b]
  * open the USER'S OWN BROWSER with prefilled text they read before posting
  * (an `open`/`xdg-open`/`start` of an https intent URL — the navigation
  * happens in their browser, not in this process). [c] pipes the --md block
- * to the local clipboard tool. Everything here is optional and interactive-
- * only; non-TTY/CI runs never reach this module (cli.ts gates it).
+ * to the local TEXT clipboard tool; accepting [x]/[b] also best-effort copies
+ * the generated card PNG to the IMAGE clipboard (copyImageToClipboard) so it
+ * can be pasted straight into the post. Everything here is optional and
+ * interactive-only; non-TTY/CI runs never reach this module (cli.ts gates
+ * it) — `--no-share` / `CACHE_REFUND_NO_SHARE` (noShareEnvSet) is the
+ * standing opt-out cli.ts checks before any of it.
  *
  * `spawnFn` is injectable so tests can assert command construction and the
  * no-clipboard-tool fallback without touching the real system.
  */
 
+import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 
 export type SpawnLike = (
@@ -20,12 +26,25 @@ export type SpawnLike = (
   opts: { stdio: ["pipe" | "ignore", "ignore", "ignore"]; detached?: boolean },
 ) => {
   on(event: "error" | "close", cb: (arg?: unknown) => void): void;
-  stdin?: { write(s: string): void; end(): void } | null;
+  /** `write` also accepts a Buffer — the image-clipboard path (wl-copy) pipes raw PNG bytes, not text. */
+  stdin?: { write(s: string | Buffer): void; end(): void } | null;
   unref?(): void;
 };
 
 export const SHARE_PROMPT_LINE =
   "share this? [x] post to X · [b] Bluesky · [c] copy to clipboard · [Enter] skip ";
+
+/**
+ * `--no-share` / `CACHE_REFUND_NO_SHARE` suppression (v1.0.2): the share
+ * prompt now fires on every interactive checkup end (no more once-per-machine
+ * gate — see actions.ts's removed sharePromptShown), so a standing opt-out is
+ * the escape hatch. Truthy the same way settings.json env flags are: "1" or
+ * "true" (case-insensitive), matching actions.ts's truthyEnvValue convention.
+ */
+export function noShareEnvSet(env: NodeJS.ProcessEnv = process.env): boolean {
+  const v = env.CACHE_REFUND_NO_SHARE;
+  return v === "1" || (v !== undefined && v.toLowerCase() === "true");
+}
 
 export function xIntentUrl(text: string): string {
   return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
@@ -136,4 +155,99 @@ export function copyToClipboard(
       resolve(false);
     }
   });
+}
+
+// ------------------------------------------------------- image clipboard
+
+/** Minimal escaping for a path embedded in an AppleScript string literal. */
+function escapeAppleScriptString(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+interface ImageClipboardCommand {
+  cmd: string;
+  args: string[];
+  /** true when the command needs the PNG bytes piped on stdin (wl-copy); xclip/osascript read the path themselves. */
+  pipeFile?: boolean;
+}
+
+/**
+ * Image-clipboard command(s) for `path`, tried IN ORDER until one succeeds.
+ * darwin: a single `osascript` call (AppleScript reads the POSIX file itself,
+ * no piping). linux: `wl-copy` first (piping the PNG bytes on stdin, mirrors
+ * `wl-copy -t image/png < file`), falling back to `xclip -i <path>` (reads
+ * the file itself, no piping) when wl-copy is unavailable. No Windows leg —
+ * returns empty, which copyImageToClipboard treats as "unsupported here".
+ * Exported for tests.
+ */
+export function imageClipboardCommandsFor(path: string, platform: NodeJS.Platform): ImageClipboardCommand[] {
+  if (platform === "darwin") {
+    return [
+      {
+        cmd: "osascript",
+        args: ["-e", `set the clipboard to (read (POSIX file "${escapeAppleScriptString(path)}") as «class PNGf»)`],
+      },
+    ];
+  }
+  if (platform === "linux") {
+    return [
+      { cmd: "wl-copy", args: ["-t", "image/png"], pipeFile: true },
+      { cmd: "xclip", args: ["-selection", "clipboard", "-t", "image/png", "-i", path] },
+    ];
+  }
+  return [];
+}
+
+/** Run one image-clipboard command, resolving true only on a clean (code 0) exit. Never throws. */
+function runImageClipboardCommand(
+  path: string,
+  { cmd, args, pipeFile }: ImageClipboardCommand,
+  spawnFn: SpawnLike,
+  readFileFn: (p: string) => Buffer,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const child = spawnFn(cmd, args, { stdio: [pipeFile ? "pipe" : "ignore", "ignore", "ignore"] });
+      let settled = false;
+      child.on("error", () => {
+        if (!settled) {
+          settled = true;
+          resolve(false);
+        }
+      });
+      child.on("close", (code?: unknown) => {
+        if (!settled) {
+          settled = true;
+          resolve(code === 0);
+        }
+      });
+      if (pipeFile) {
+        child.stdin?.write(readFileFn(path));
+        child.stdin?.end();
+      }
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Copy the PNG at `path` itself onto the system IMAGE clipboard (v1.0.2,
+ * distinct from copyToClipboard's TEXT path above) so a post can be pasted
+ * straight in — see cli.ts's maybeSharePrompt for the fallback message when
+ * this resolves false. Tries each of imageClipboardCommandsFor's commands in
+ * order until one exits clean; best-effort throughout, never throws, and
+ * resolves false (never rejects) on an unsupported platform or when every
+ * tool is missing.
+ */
+export async function copyImageToClipboard(
+  path: string,
+  platform: NodeJS.Platform = process.platform,
+  spawnFn: SpawnLike = spawn as unknown as SpawnLike,
+  readFileFn: (p: string) => Buffer = (p) => readFileSync(p),
+): Promise<boolean> {
+  for (const command of imageClipboardCommandsFor(path, platform)) {
+    if (await runImageClipboardCommand(path, command, spawnFn, readFileFn)) return true;
+  }
+  return false;
 }

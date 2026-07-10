@@ -1,13 +1,25 @@
 /**
- * Generated share image (v1.0.2): a zero-dep SVG card writer that mirrors
- * the in-repo hero (assets/card.svg) — dark terminal window, traffic lights,
- * magenta branded box border — with the numbers substituted from the live
- * Summary. Written on share-prompt accept so the post has an attachment
- * without a manual screenshot.
+ * Generated share image (v1.0.2): a zero-dep, 720x720 SQUARE SVG card writer
+ * — dark terminal window, traffic lights, magenta branded CTA pill — with
+ * the numbers substituted from the live Summary. Written on share-prompt
+ * accept so the post has an attachment without a manual screenshot; cli.ts
+ * then best-effort copies the resulting PNG straight onto the image
+ * clipboard (see share.ts's copyImageToClipboard) so the post is paste-ready.
  *
- * Share-safe rules (same as the templates): NEVER project names, no "-eq"
- * jargon — subscriber figures say "in API-value" and the footer carries the
- * qualifier. Every substituted string is XML-escaped.
+ * Square canvas is deliberate, not cosmetic: qlmanage's `-t` thumbnail mode
+ * renders a square thumbnail regardless of the source's aspect ratio, so a
+ * non-square source (the old 720x440 card) came out letterboxed/padded after
+ * conversion. At 720x720 the thumbnail IS the artwork — no crop/sips step
+ * needed before or after `qlmanage -t -s 1440` (kept as-is below).
+ *
+ * Ending-aware hero block (the one huge number, replaces v1's smaller
+ * score-box figure): C leads with the API-value receipt delta, A with the
+ * unclaimed-refund delta, B with the bare efficiency score — see
+ * heroBlock() below.
+ *
+ * Share-safe rules (same as the terminal + share templates): NEVER project
+ * names, no "-eq" jargon — subscriber figures say "in API-value" and the
+ * footer carries the qualifier. Every substituted string is XML-escaped.
  *
  * PNG: X attachments need a raster, so on darwin we best-effort convert via
  * `qlmanage -t -s 1440` (ships with macOS) and rename its `<name>.svg.png`
@@ -20,7 +32,7 @@ import { existsSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { decideEnding, wrappedLines } from "./render.js";
-import { fmtDollars, fmtTokensCompact, makeInk, makeSym } from "./format.js";
+import { fmtTokensCompact, makeInk, makeSym } from "./format.js";
 import type { Summary } from "./types.js";
 
 export const CARD_BASENAME = "cache-refund-card";
@@ -35,96 +47,144 @@ export function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** The top wrapped insight, share-safe: no project (never passed), no "-eq". */
-function imageWrappedLine(s: Summary): string {
-  const lines = wrappedLines(s, makeInk(false), makeSym(false), false);
-  const first = lines[1] ?? "";
-  return first.replace(/^\s*»\s*/, "").replace(/-eq\b/g, "");
+/** `$` + rounded-to-the-dollar magnitude, comma-grouped, NEVER cents — the hero is a headline, not a ledger line. */
+function fmtHeroDollars(n: number): string {
+  return `$${Math.round(Math.abs(n)).toLocaleString("en-US")}`;
 }
 
-/** Short window tag, mirrors the box's "(last 90d)". */
-function windowTag(s: Summary): string {
+/** Truncate to `max` chars (default 64, the hero fact line's budget), appending a single ellipsis when cut. */
+function truncateFact(s: string, max = 64): string {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** The top wrapped insight, share-safe (no project — showProjects is always false here) and terminal-jargon-free (no "-eq"). */
+function factLine(s: Summary): string {
+  const lines = wrappedLines(s, makeInk(false), makeSym(false), false);
+  const first = lines[1] ?? "";
+  const clean = first
+    .replace(/^\s*»\s*/, "")
+    .replace(/-eq\b/g, "")
+    .trim();
+  return truncateFact(clean);
+}
+
+/** Plain-English window phrase for the hero sub-line, e.g. "last 90 days" / "the 42-day span analyzed". */
+function windowPhraseLong(s: Summary): string {
   return s.window.mode === "days" && s.window.days != null
-    ? `last ${s.window.days}d`
-    : `${Math.round(s.counterfactual.spanDays)}d span`;
+    ? `last ${s.window.days} days`
+    : `the ${Math.round(s.counterfactual.spanDays)}-day span analyzed`;
+}
+
+interface HeroBlock {
+  overline: string;
+  hero: string;
+  heroClass: "green" | "orange";
+  sub: string;
 }
 
 /**
- * Build the SVG card. Ending-aware like the terminal box: C leads with the
- * API-value receipt figure; A/B lead with the score.
+ * The ending-aware hero: overline + huge headline number + one-line sub,
+ * mirroring the terminal's three verdict shapes (decideEnding's A/B/C, with
+ * A-enable and A-revert sharing the same "unclaimed refund" framing — both
+ * are "one config line recovers it", just in opposite directions).
  */
-export function buildCardSvg(s: Summary): string {
+function heroBlock(s: Summary): HeroBlock {
   const kind = decideEnding(s);
-  const score = s.efficiencyScore.toFixed(1);
-  const scale = `${fmtTokensCompact(s.tokens.creationTotal + s.tokens.readTotal)} tokens · ${s.scope.sessions.toLocaleString()} sessions`;
-  const wrapped = imageWrappedLine(s);
-  const subscriber = s.currency !== "USD";
-
-  let headline: string;
-  let figure: string;
-  let figureClass: string;
   if (kind === "C") {
     const delta = s.counterfactual.delta1hMinus5m;
-    headline = "YOUR 1H CACHE RECEIPT";
-    figure =
-      delta < 0
-        ? `saved ≈${fmtDollars(Math.abs(delta))} in API-value (${windowTag(s)})`
-        : `≈${fmtDollars(delta)} costlier than the default (${windowTag(s)})`;
-    figureClass = delta < 0 ? "green" : "orange";
-  } else {
-    headline = "CACHE EFFICIENCY SCORE";
-    figure = `${score} / 100`;
-    figureClass = s.efficiencyScore >= 90 ? "green" : "orange";
+    const saved = delta < 0;
+    return {
+      overline: "YOUR 1H CACHE RECEIPT",
+      hero: fmtHeroDollars(delta),
+      heroClass: saved ? "green" : "orange",
+      // Honest flip for the (unusual) subscriber whose 1h TTL cost more than
+      // 5m would have this window — never claim "saved" on a positive delta
+      // (same discipline as render.ts's receiptHeadline/cachingSavedLine).
+      sub: saved
+        ? `saved in API-value · ${windowPhraseLong(s)}`
+        : `costlier than the default · ${windowPhraseLong(s)}`,
+    };
   }
-  const scoreLine = kind === "C" ? `efficiency score: ${score} / 100` : kind === "B" ? "certified optimal" : "fix available";
+  if (kind === "B") {
+    return {
+      overline: "CERTIFIED OPTIMAL",
+      hero: s.efficiencyScore.toFixed(1),
+      heroClass: "green",
+      sub: "the default cache setting is right for how you work",
+    };
+  }
+  // A-enable / A-revert: the recommender's and validator's actionable gap —
+  // same copy either way, since both reduce to "switch the TTL, recover this".
+  return {
+    overline: "UNCLAIMED CACHE REFUND",
+    hero: fmtHeroDollars(s.counterfactual.delta1hMinus5m),
+    heroClass: "orange",
+    sub: "left on the table · one config line recovers it",
+  };
+}
 
-  const footerA = "100% local · token counts + timestamps · nothing leaves this machine";
-  const footerB = subscriber ? "$ figures are API-value (list rates) — not a bill" : "";
+/** Gap-bucket bar width in px (track is 300px wide): pct/100*300, floored at 6px so a nonzero share is never invisible. */
+function barWidth(pctRaw: number): number {
+  if (pctRaw <= 0) return 0;
+  return Math.max(6, Math.round((pctRaw / 100) * 300));
+}
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="440" viewBox="0 0 720 440">
-  <defs>
-    <style>
-      .t { font-family: "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace; font-size: 15px; white-space: pre; }
-      .dim { fill: #8b8fa3; }
-      .txt { fill: #e6e6ef; }
-      .green { fill: #3fd68f; font-weight: 600; }
-      .head { fill: #e6e6ef; font-weight: 700; letter-spacing: 1px; }
-      .brand { fill: #d75fd7; font-weight: 700; }
-      .orange { fill: #e8a15d; }
-    </style>
-  </defs>
-  <!-- window -->
-  <rect x="8" y="8" width="704" height="424" rx="14" fill="#15161c"/>
-  <rect x="8" y="8" width="704" height="424" rx="14" fill="none" stroke="#2a2c37" stroke-width="1"/>
-  <!-- title bar -->
-  <path d="M8 22 a14 14 0 0 1 14 -14 h676 a14 14 0 0 1 14 14 v26 h-704 z" fill="#1d1f28"/>
-  <circle cx="34" cy="28" r="6.5" fill="#ff5f57"/>
-  <circle cx="56" cy="28" r="6.5" fill="#febc2e"/>
-  <circle cx="78" cy="28" r="6.5" fill="#28c840"/>
-  <text x="360" y="33" text-anchor="middle" class="t dim" font-size="13">npx cache-refund</text>
+/**
+ * Build the 720x720 SVG card. Ending-aware like the terminal box — see
+ * heroBlock(). Every substituted string is XML-escaped (composed lines are
+ * escaped whole, matching the existing convention: build the text, then
+ * escape it once, rather than escaping numeric pieces separately).
+ */
+export function buildCardSvg(s: Summary): string {
+  const hero = heroBlock(s);
+  const statLine = escapeXml(
+    `efficiency ${s.efficiencyScore.toFixed(1)} / 100   ·   ` +
+      `${fmtTokensCompact(s.tokens.creationTotal + s.tokens.readTotal)} tokens   ·   ` +
+      `${s.scope.sessions.toLocaleString()} sessions`,
+  );
+  const fact = escapeXml(factLine(s));
+  const subscriber = s.currency !== "USD";
 
-  <!-- prompt -->
-  <text x="44" y="86" class="t dim">$ <tspan class="txt">npx cache-refund card</tspan></text>
+  const bucketTotal = s.buckets.creationTotal > 0 ? s.buckets.creationTotal : 1;
+  const pctWarm = (s.buckets.warm / bucketTotal) * 100;
+  const pctRec = (s.buckets.recoverable / bucketTotal) * 100;
+  const pctCold = (s.buckets.cold / bucketTotal) * 100;
+  const pctWarmText = escapeXml(`${pctWarm.toFixed(1)}%`);
+  const pctRecText = escapeXml(`${pctRec.toFixed(1)}%`);
+  const pctColdText = escapeXml(`${pctCold.toFixed(1)}%`);
 
-  <!-- receipt box: brand woven into the top border -->
-  <rect x="44" y="112" width="524" height="168" rx="10" fill="none" stroke="#d75fd7" stroke-width="1.6"/>
-  <rect x="64" y="103" width="142" height="18" fill="#15161c"/>
-  <text x="135" y="117" text-anchor="middle" class="t brand" font-size="14">cache-refund</text>
+  const footerSub = subscriber
+    ? `\n  <text x="360" y="690" text-anchor="middle" class="t dim" font-size="12">${escapeXml("$ figures are API-value (list rates) — not a bill")}</text>`
+    : "";
 
-  <text x="306" y="158" text-anchor="middle" class="t head">${escapeXml(headline)}</text>
-  <text x="306" y="186" text-anchor="middle" class="t ${figureClass}">${escapeXml(figure)}</text>
-  <text x="306" y="228" text-anchor="middle" class="t txt">${escapeXml(scoreLine)}</text>
-  <text x="306" y="254" text-anchor="middle" class="t dim">${escapeXml(scale)}</text>
-
-  <!-- wrapped line -->
-  <text x="44" y="322" class="t"><tspan class="orange">›</tspan><tspan class="txt"> ${escapeXml(wrapped)}</tspan></text>
-
-  <!-- share rail -->
-  <text x="44" y="364" class="t dim">share: npx cache-refund card  ·  #cacherefund</text>
-
-  <!-- footer note -->
-  <text x="44" y="${footerB ? 396 : 404}" class="t dim" font-size="12.5">${escapeXml(footerA)}</text>
-${footerB ? `  <text x="44" y="416" class="t dim" font-size="12.5">${escapeXml(footerB)}</text>` : ""}
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720">
+  <defs><style>
+    .t { font-family: "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", monospace; white-space: pre; }
+    .dim { fill: #8b8fa3; } .txt { fill: #e6e6ef; }
+    .green { fill: #3fd68f; } .orange { fill: #e8a15d; } .brand { fill: #d75fd7; }
+  </style></defs>
+  <rect width="720" height="720" fill="#0f1016"/>
+  <rect x="16" y="16" width="688" height="688" rx="16" fill="#15161c" stroke="#2a2c37"/>
+  <path d="M16 32 a16 16 0 0 1 16 -16 h656 a16 16 0 0 1 16 16 v26 h-688 z" fill="#1d1f28"/>
+  <circle cx="44" cy="37" r="6.5" fill="#ff5f57"/><circle cx="66" cy="37" r="6.5" fill="#febc2e"/><circle cx="88" cy="37" r="6.5" fill="#28c840"/>
+  <text x="360" y="42" text-anchor="middle" class="t dim" font-size="13">npx cache-refund</text>
+  <text x="360" y="130" text-anchor="middle" class="t dim" font-size="14" letter-spacing="3">${escapeXml(hero.overline)}</text>
+  <text x="360" y="205" text-anchor="middle" class="t ${hero.heroClass}" font-size="68" font-weight="700">${escapeXml(hero.hero)}</text>
+  <text x="360" y="240" text-anchor="middle" class="t dim" font-size="16">${escapeXml(hero.sub)}</text>
+  <text x="360" y="292" text-anchor="middle" class="t txt" font-size="16">${statLine}</text>
+  <text x="80" y="345" class="t dim" font-size="12" letter-spacing="2">CACHE WRITES BY RE-WARM GAP</text>
+  <rect x="200" y="362" width="300" height="12" rx="6" fill="#232530"/><rect x="200" y="362" width="${barWidth(pctWarm)}" height="12" rx="6" fill="#3fd68f"/>
+  <text x="80" y="373" class="t dim" font-size="13">warm</text><text x="516" y="373" class="t txt" font-size="13">${pctWarmText}</text>
+  <rect x="200" y="384" width="300" height="12" rx="6" fill="#232530"/><rect x="200" y="384" width="${barWidth(pctRec)}" height="12" rx="6" fill="#e0b856"/>
+  <text x="80" y="395" class="t dim" font-size="13">recoverable</text><text x="516" y="395" class="t txt" font-size="13">${pctRecText}</text>
+  <rect x="200" y="406" width="300" height="12" rx="6" fill="#232530"/><rect x="200" y="406" width="${barWidth(pctCold)}" height="12" rx="6" fill="#949cb8"/>
+  <text x="80" y="417" class="t dim" font-size="13">cold</text><text x="516" y="417" class="t txt" font-size="13">${pctColdText}</text>
+  <text x="80" y="478" class="t" font-size="14"><tspan class="orange">›</tspan><tspan class="txt"> ${fact}</tspan></text>
+  <rect x="80" y="530" width="560" height="64" rx="12" fill="#d75fd7" fill-opacity="0.10" stroke="#d75fd7" stroke-width="1.5"/>
+  <text x="360" y="570" text-anchor="middle" class="t brand" font-size="22" font-weight="700">npx cache-refund</text>
+  <text x="360" y="640" text-anchor="middle" class="t dim" font-size="13">#cacherefund</text>
+  <text x="360" y="672" text-anchor="middle" class="t dim" font-size="12">100% local · token counts + timestamps · nothing leaves this machine</text>${footerSub}
 </svg>
 `;
 }
@@ -151,7 +211,9 @@ export function defaultCardDir(home: string = homedir(), cwd: string = process.c
 
 /**
  * Write the SVG (and, on darwin, best-effort PNG) card for this Summary.
- * Never throws for the PNG leg — SVG-only is the graceful floor.
+ * Never throws for the PNG leg — SVG-only is the graceful floor. The square
+ * 720x720 canvas means qlmanage's `-t` thumbnail needs no post-processing:
+ * its square output IS the full card, at any `-s` size — no sips/crop step.
  */
 export function writeCardImage(s: Summary, opts: CardImageOpts = {}): CardImageResult {
   const dir = opts.dir ?? defaultCardDir();

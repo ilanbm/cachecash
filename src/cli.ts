@@ -13,6 +13,8 @@
  *   --no-color · --all-time · --json · --md · --compact · --explain ·
  *   --projects (v1.0.1: opt back into project names in human output;
  *               default is share-safe — no project names in screenshots)
+ *   --no-share (v1.0.2: silence the share prompt; same as env
+ *               CACHE_REFUND_NO_SHARE=1 — see maybeSharePrompt)
  *
  * Exit codes: 0 ok · 1 no transcripts found · 2 parse/internal error.
  * `--json` never prompts.
@@ -26,17 +28,12 @@ import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { run } from "./pipeline.js";
 import { parsePriceOverride } from "./pricing.js";
-import {
-  applyEnable,
-  applyRevert,
-  recordSharePromptShown,
-  runRecheck,
-  runVerify,
-  sharePromptShown,
-} from "./actions.js";
+import { applyEnable, applyRevert, runRecheck, runVerify } from "./actions.js";
 import {
   bskyIntentUrl,
+  copyImageToClipboard,
   copyToClipboard,
+  noShareEnvSet,
   openExternal,
   revealFile,
   SHARE_PROMPT_LINE,
@@ -48,7 +45,6 @@ import {
   decideEnding,
   gapBars,
   makeScanProgress,
-  numberBox,
   pickLoadingPun,
   renderAmbiguousNotice,
   renderCard,
@@ -88,6 +84,14 @@ interface Args {
    * filter). --json always keeps its project fields regardless.
    */
   projects: boolean;
+  /**
+   * --no-share (v1.0.2): silence maybeSharePrompt entirely (no prompt line,
+   * no "share anytime" hint) — same effect as env CACHE_REFUND_NO_SHARE
+   * (see share.ts's noShareEnvSet). The share prompt itself has no other
+   * frequency guard: it appears on every interactive checkup end, so this
+   * flag is the standing opt-out.
+   */
+  noShare: boolean;
 }
 
 const SUBCOMMANDS = new Set<Subcommand>(["card", "enable", "revert", "verify", "recheck", "share"]);
@@ -104,6 +108,7 @@ function parseArgs(argv: string[]): Args {
     compact: false,
     explain: false,
     projects: false,
+    noShare: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -133,6 +138,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--no-color":
         args.noColor = true;
+        break;
+      case "--no-share":
+        args.noShare = true;
         break;
       case "--days": {
         const v = Number(argv[++i]);
@@ -207,30 +215,30 @@ function promptLine(question: string): Promise<string> {
 // ------------------------------------------------------------- share CTA
 
 /**
- * The share CTA (v1.0.1). TTY-interactive only — never non-TTY/CI/--json/
- * --md/card/--compact (callers gate on the checkup TTY path + the two
- * forced re-ask moments). Frequency guard: asks ONCE per machine ever
- * (recorded in the baseline file via actions.ts), except `force` re-asks at
- * the two high-emotion moments (right after a successful enable; after a
- * recheck showing positive savings). Any non-[x/b/c] answer = skip, no nag.
+ * The share CTA (v1.0.1; default-on, no frequency guard, as of v1.0.2).
+ * TTY-interactive only — never non-TTY/CI/--json/--md/card/--compact
+ * (callers gate on the checkup TTY path + the two forced re-ask moments).
+ *
+ * No once-per-machine gate anymore: this fires on EVERY interactive checkup
+ * end, plus right after a successful enable, after a recheck showing
+ * positive savings, and on the `share` subcommand — all callers just call
+ * this directly now. The only way to silence it is the standing opt-out:
+ * `--no-share` (the `noShare` param) or env `CACHE_REFUND_NO_SHARE`
+ * (share.ts's noShareEnvSet) — checked FIRST, before the interactive check,
+ * so a suppressed run prints nothing at all, not even the dim hint line.
+ * Any non-[x/b/c] answer (including a bare Enter) = skip, no nag — but the
+ * door stays visible via the dim "share anytime" line.
  *
  * Trust line holds: zero network requests from this process — [x]/[b] open
  * the user's own browser with prefilled text they read before posting; [c]
  * uses the local clipboard tool.
  */
-async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void> {
+async function maybeSharePrompt(summary: Summary, noShare: boolean): Promise<void> {
+  if (noShare || noShareEnvSet()) return;
   const interactive = process.stdout.isTTY && !process.env.CI;
   if (!interactive) return;
-  if (!force && sharePromptShown(homedir())) {
-    // The auto-prompt fired on an earlier run (once per machine, no nag) —
-    // keep sharing reachable on demand instead of silently disappearing.
-    process.stdout.write(makeInk(true).dim("\nshare anytime: npx cache-refund share\n"));
-    return;
-  }
 
   const answer = await promptLine(`\n${SHARE_PROMPT_LINE}`);
-  // Recorded regardless of the answer: once per machine, no nag.
-  recordSharePromptShown(homedir());
 
   if (answer === "x" || answer === "b") {
     const text = shareTemplate(summary);
@@ -241,16 +249,25 @@ async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void>
     }
     // Generated share image (v1.0.2, replaces the screenshot ask): write the
     // SVG card (+ best-effort PNG on darwin — X attachments need a raster),
-    // reveal it in the file manager (darwin), and point at the file.
+    // then best-effort put the IMAGE ITSELF on the clipboard so the post is
+    // paste-ready (Cmd+V) — no manual attach step. Reveal-in-Finder
+    // (`open -R`, darwin only) is now reserved for the fallback path (no
+    // PNG, or the clipboard-image tool failed): a successful clipboard copy
+    // needs no Finder popup.
     try {
       const { svgPath, pngPath } = writeCardImage(summary);
       const file = pngPath ?? svgPath;
-      revealFile(file);
-      process.stdout.write(`card image saved: ${file} — attach it to the post\n`);
-      if (!pngPath) {
-        process.stdout.write(
-          "(png conversion unavailable — svg attached tools may not accept; screenshot the card above as backup)\n",
-        );
+      const clipped = pngPath ? await copyImageToClipboard(pngPath) : false;
+      if (clipped) {
+        process.stdout.write("card image copied to your clipboard — paste it into the post (Cmd+V)\n");
+      } else {
+        revealFile(file);
+        process.stdout.write(`card image saved: ${file} — attach it to the post\n`);
+        if (!pngPath) {
+          process.stdout.write(
+            "(png conversion unavailable — svg attached tools may not accept; screenshot the card above as backup)\n",
+          );
+        }
       }
     } catch {
       // Image generation is a convenience — never let it break the share flow.
@@ -268,7 +285,7 @@ async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void>
     }
     return;
   }
-  // Skipped: stay quiet, but leave the door visible.
+  // Skipped (Enter, or anything else): stay quiet, but leave the door visible.
   process.stdout.write(makeInk(true).dim("share anytime: npx cache-refund share\n"));
 }
 
@@ -407,11 +424,11 @@ async function dispatch(
       return 0;
 
     case "share":
-      // Sharing on demand: same card + prompt as the checkup's closing frame,
-      // with the once-per-machine guard bypassed (running `share` IS consent
-      // to be asked).
+      // Sharing on demand: same card + prompt as the checkup's closing frame
+      // (there's no frequency guard to bypass anymore — see maybeSharePrompt
+      // — running `share` just asks, same as any other checkup end).
       process.stdout.write(renderCard(summary, opts) + "\n");
-      await maybeSharePrompt(summary, true);
+      await maybeSharePrompt(summary, args.noShare);
       return 0;
 
     // "enable" / "revert" never reach this switch: non-json runs are
@@ -431,7 +448,7 @@ async function dispatch(
       process.stdout.write(res.message.join("\n") + "\n");
       if ((res.savedSinceEnable ?? 0) > 0) {
         // High-emotion re-ask moment #2: a receipt showing positive savings.
-        await maybeSharePrompt(summary, true);
+        await maybeSharePrompt(summary, args.noShare);
       }
       return 0;
     }
@@ -470,13 +487,21 @@ async function renderCheckup(
 
   // TTY path: staggered reveal of the trust line and CHECKUP header, then
   // the rest prints normally. Never clears the screen at any point.
+  //
+  // v1.0.2: no score-box print here anymore. The closing card below (after
+  // the ending) is the ONLY box in the whole interactive run — one
+  // screenshot-worthy frame at the end, not two. Ending C's receipt total
+  // needs nothing extra "at the bottom" for this: the closing card reuses
+  // renderCard(), which itself wraps numberBox(), so the receipt's headline
+  // figure already lands there. Non-TTY/CI output is untouched (renderFull,
+  // used by the !opts.tty branch above, still prints its box up top — see
+  // render.ts's craft-laws comment: that snapshot must not change).
   const ink = makeInk(!opts.noColor);
   // Reached only when opts.tty is true (see the !opts.tty branch above), so
   // this is always the Unicode table — ascii-ness tracks TTY-ness.
   const sym = makeSym(false);
   await staggerPrint(checkupLines(summary, ink, sym));
-  process.stdout.write("\n" + numberBox(summary, ink, sym) + "\n\n");
-  process.stdout.write(gapBars(summary, ink, false, sym).join("\n") + "\n\n");
+  process.stdout.write("\n" + gapBars(summary, ink, false, sym).join("\n") + "\n\n");
   process.stdout.write(wrappedLines(summary, ink, sym, args.projects).join("\n") + "\n\n");
 
   const kind = decideEnding(summary);
@@ -494,10 +519,9 @@ async function renderCheckup(
   process.stdout.write("\n" + renderCard(summary, opts) + "\n");
 
   // Share CTA, after the closing card (TTY path only — the non-TTY branch
-  // above never prompts). Once per machine; the post-enable re-ask inside
-  // maybeConsentFromEnding records first, which makes this call a no-op in
-  // that flow.
-  await maybeSharePrompt(summary, false);
+  // above never prompts). Fires every time (see maybeSharePrompt) unless
+  // suppressed by --no-share / CACHE_REFUND_NO_SHARE.
+  await maybeSharePrompt(summary, args.noShare);
   return code;
 }
 
@@ -572,7 +596,7 @@ async function runStandaloneAction(args: Args): Promise<number> {
   if (res.applied && summary) {
     // High-emotion re-ask moment #1 (standalone `enable` route). Skipped
     // when no Summary exists (empty corpus) — no numbers to fill a template.
-    await maybeSharePrompt(summary, true);
+    await maybeSharePrompt(summary, args.noShare);
   }
   return 0;
 }
@@ -612,7 +636,7 @@ async function maybeConsentFromEnding(
   process.stdout.write("\n" + res.message.join("\n") + "\n");
   if (res.applied && consentVerb === "enable") {
     // High-emotion re-ask moment #1: right after a successful enable.
-    await maybeSharePrompt(summary, true);
+    await maybeSharePrompt(summary, args.noShare);
   }
   return 0;
 }

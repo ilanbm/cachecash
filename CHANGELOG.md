@@ -16,11 +16,20 @@ All notable changes to this project are documented here. The format follows
 - **Share text in plain English**: prefilled posts now use percentage framing
   ("~14% of my cache costs, ≈$X in API-value") — no terminal jargon (`-eq`,
   "5m world") in tweets; the terminal keeps its labeled conventions.
-- **Generated share image**: accepting the share prompt ([x]/[b]) writes a
-  ready-to-attach `cache-refund-card.svg` (dark terminal-window card, your
-  numbers, never project names) to `~/Downloads` (or the current directory),
-  converts to PNG on macOS when possible, and reveals it in Finder — no more
-  manual screenshot.
+- **Share prompt appears every run**: the "share this?" prompt no longer asks
+  just once per machine — it now appears at the end of every interactive
+  checkup, same as it already did after enable, after a positive recheck, and
+  on `share`. Silence it with `--no-share` or env `CACHE_REFUND_NO_SHARE=1` —
+  either suppresses the prompt and its hints entirely, every run.
+- **Generated share image, now a square card**: accepting the share prompt
+  ([x]/[b]) writes a ready-to-attach `cache-refund-card.svg` — redesigned as
+  a 720×720 square (dark terminal-window card, your numbers, never project
+  names, plus a cache-writes-by-re-warm-gap breakdown) — to `~/Downloads` (or
+  the current directory), and converts to PNG on macOS when possible. The
+  square canvas also fixes a padding bug in the macOS thumbnail conversion.
+  On macOS, the PNG is then copied straight onto the clipboard — paste it
+  into the post with Cmd+V, no manual attach step; Finder-reveal is now only
+  the fallback when the clipboard copy isn't available.
 - **Closing card**: interactive checkups now end by dealing your card — the
   share-ready block is re-printed as the final frame, so the tail of the
   terminal is the screenshot.
