@@ -283,12 +283,12 @@ describe("receipt ordering: counterfactual headline leads", () => {
 });
 
 describe("score box is ending-aware", () => {
-  it("ending C's box leads with the $-eq receipt figure; score is the second line", () => {
+  it("ending C's box leads with the spelled-out receipt figure; score is the second line", () => {
     const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true)));
     expect(rendered).toContain("YOUR 1H CACHE RECEIPT");
-    expect(rendered).toContain("saved ~$2,500.95-eq vs 5m (last 90d)");
+    expect(rendered).toContain("saved ~$2,500.95 in API-value (last 90d)");
     expect(rendered).toContain("efficiency score: 98.5 / 100");
-    expect(rendered.indexOf("saved ~$2,500.95-eq")).toBeLessThan(rendered.indexOf("efficiency score"));
+    expect(rendered.indexOf("saved ~$2,500.95 in API-value")).toBeLessThan(rendered.indexOf("efficiency score"));
     for (const line of rendered.split("\n")) {
       expect(line.length).toBe(boxWidth); // width law still holds for this shape
     }
@@ -326,12 +326,13 @@ describe("currency separation on shared surfaces", () => {
     expect(bare, `bare $ figures found in subscriber wrapped lines: ${JSON.stringify(bare)}`).toEqual([]);
     expect(text).toMatch(/\$[\d,]+\.\d{2}-eq/);
   });
-  it("subscriber: card and --compact carry -eq on their $ figures", () => {
+  it("subscriber: card and --compact qualify every $ figure (-eq or 'in API-value')", () => {
     for (const out of [renderCard(sub, NON_TTY), renderCompact(sub, NON_TTY)]) {
       const text = stripAnsi(out);
-      const bare = text.match(/\$[\d,]+\.\d{2}(?!-eq)/g) ?? [];
+      // A $ figure is qualified if suffixed -eq or followed by "in API-value".
+      const bare = (text.match(/\$[\d,]+\.\d{2}(?!-eq)(?! in API-value)/g)) ?? [];
       expect(bare, `bare $ figures found: ${JSON.stringify(bare)}`).toEqual([]);
-      expect(text).toMatch(/\$[\d,]+\.\d{2}-eq/);
+      expect(text).toMatch(/\$[\d,]+\.\d{2}(-eq| in API-value)/);
     }
   });
   it("subscriber: --md biggest-miss/worst-day match its own $-eq table header", () => {
