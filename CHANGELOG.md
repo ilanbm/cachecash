@@ -6,14 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-07-10
+
+- **Renamed to `cache-refund`** (previously published as a scoped package).
+  Say it out loud — that's the whole product. The install line is now
+  `npx cache-refund`; the installed command is `cache-refund`; the hashtag is
+  `#cacherefund`. The enable prompt now reads "Claim your cache refund".
+  Baseline and backup filenames follow the new name.
+
 ## [1.0.1] — 2026-07-10
 
 - **Share-safe output by default** (privacy): human-facing output no longer
   prints project names anywhere; a new `--projects` flag opts back in for
   local diagnosis. `--json` (machine mode) keeps its project fields unchanged.
-- **Branded, recognizable frame**: the score/receipt box weaves `cache-cash`
-  into its top border (`╭─── cache-cash ───…──╮`, bright magenta on TTYs;
-  `+--- cache-cash ---...---+` in ASCII/CI mode), replacing the interior
+- **Branded, recognizable frame**: the score/receipt box weaves `cache-refund`
+  into its top border (`╭─── cache-refund ───…──╮`, bright magenta on TTYs;
+  `+--- cache-refund ---...---+` in ASCII/CI mode), replacing the interior
   brand line. All three endings share the frame.
 - **Progress-line fix**: the live scan counter is now a real in-place counter
   (percent-throttled) and is erased on completion — no more stuck
@@ -44,9 +52,9 @@ Initial public release.
 - Actions: `enable` / `revert` (confirmed, backup-first settings edit),
   `verify`, `recheck` (savings receipts against a baseline saved at enable).
 - Output modes: `card`, `--md`, `--compact`, `--explain`, `--json`.
-- Claude Code plugin/skill (`/plugin marketplace add m8t-labs/cachecash`).
+- Claude Code plugin/skill (`/plugin marketplace add m8t-labs/cache-refund`).
 - 100% local: token counts and timestamps only, no conversation content,
   no network, zero runtime dependencies.
 
-[Unreleased]: https://github.com/m8t-labs/cachecash/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/m8t-labs/cachecash/releases/tag/v1.0.0
+[Unreleased]: https://github.com/m8t-labs/cache-refund/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/m8t-labs/cache-refund/releases/tag/v1.0.0

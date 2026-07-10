@@ -63,12 +63,12 @@ export interface RenderOptions {
   showProjects?: boolean;
 }
 
-const BRAND = "cache-cash";
-const METHODOLOGY_HINT = "methodology: npx @m8t-labs/cache-cash --explain";
+const BRAND = "cache-refund";
+const METHODOLOGY_HINT = "methodology: npx cache-refund --explain";
 /** Contains the `dot` decoration -> a function of `sym`, not a plain const. */
 function shareHint(sym: Sym): string {
   // v1.0.1: points at `card` (the canonical screenshot), not --compact.
-  return `share: npx @m8t-labs/cache-cash card  ${sym.dot}  #cachecash`;
+  return `share: npx cache-refund card  ${sym.dot}  #cacherefund`;
 }
 /** Contains a prose em dash -> a function of `sym`, not a plain const. */
 function watchTeaser(sym: Sym): string {
@@ -151,7 +151,7 @@ export function pickLoadingPun(rand: () => number = Math.random): string {
 }
 
 export function trustLine(ink: Ink, sym: Sym): string {
-  return ink.dim(`${BRAND} ${sym.dash} 100% local. Token counts + timestamps only. No content, no network.`);
+  return ink.dim(`${BRAND} ${sym.dash} 100% local. Token counts + timestamps. No content, no network.`);
 }
 
 /** Stateful in-place scan counter (v1.0.1 progress-line fix; replaces the old one-shot scanCounterLine). */
@@ -225,7 +225,7 @@ export function checkupLines(s: Summary, ink: Ink, sym: Sym): string[] {
  * ending kind is derived internally from the Summary (decideEnding) so
  * callers' signatures are unchanged.
  *
- * v1.0.1: the brand is woven into the TOP BORDER (`╭─── cache-cash ───…──╮`,
+ * v1.0.1: the brand is woven into the TOP BORDER (`╭─── cache-refund ───…──╮`,
  * tinted ink.brand) instead of a dim interior row — a recognizable frame in
  * screenshots on any theme, one line shorter. All three endings share this
  * frame (recognizability is the point); the certificate box uses it too.
@@ -664,7 +664,7 @@ export function shareRail(ink: Ink, sym: Sym): string[] {
 
 // ---------------------------------------------------------- share templates
 
-const SHARE_CTA_TAIL = "npx @m8t-labs/cache-cash #cachecash";
+const SHARE_CTA_TAIL = "npx cache-refund #cacherefund";
 const SHARE_BUDGET = 280;
 
 /**
@@ -693,21 +693,21 @@ export function shareTemplate(s: Summary): string {
     const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
     scaleClause = ""; // A's template carries no scale clause
     full =
-      `cache-cash found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
+      `cache-refund found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
       `${rc} of my cache writes were avoidable re-warms (break-even: ${thresh}). ` +
       `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
   } else if (kind === "A-revert") {
     const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
     scaleClause = "";
     full =
-      `cache-cash found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
+      `cache-refund found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
       `the 1h TTL costs more than 5m for my pattern. ` +
       `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
   } else if (kind === "B") {
     const rightTtl = s.branch === "api-1h" ? "The 1-hour TTL" : "The 5-minute default";
     scaleClause = `, proven over ${tokens} tokens`;
     full =
-      `Ran cache-cash expecting bad news — got CERTIFIED OPTIMAL ${score}/100. ` +
+      `Ran cache-refund expecting bad news — got CERTIFIED OPTIMAL ${score}/100. ` +
       `${rightTtl} is actually right for how I work (R/C ${rc} < ${thresh})${scaleClause}. ` +
       SHARE_CTA_TAIL;
   } else {
@@ -843,9 +843,9 @@ export function renderMarkdown(s: Summary): string {
   }
   lines.push("");
   if (kind === "A-enable") {
-    lines.push(`**Verdict:** switching to the 1h TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d. Run \`npx @m8t-labs/cache-cash enable\` to apply.`);
+    lines.push(`**Verdict:** switching to the 1h TTL saves ~${fmtDollars(Math.abs(cf.delta30d))}/30d. Run \`npx cache-refund enable\` to apply.`);
   } else if (kind === "A-revert") {
-    lines.push(`**Verdict:** 5m would cost ~${fmtDollars(Math.abs(cf.delta30d))}/30d less for this pattern. Run \`npx @m8t-labs/cache-cash revert\` to apply.`);
+    lines.push(`**Verdict:** 5m would cost ~${fmtDollars(Math.abs(cf.delta30d))}/30d less for this pattern. Run \`npx cache-refund revert\` to apply.`);
   } else if (kind === "B") {
     lines.push(`**Verdict:** certified optimal ✓ — you're on the cheaper TTL for your pattern.`);
   } else {

@@ -1,10 +1,10 @@
 # METHODOLOGY
 
-How `cache-cash` turns your transcripts into a verdict, with every constant
+How `cache-refund` turns your transcripts into a verdict, with every constant
 sourced and every formula reproducible. This document describes the code as
 **implemented** in [`src/costmodel.ts`](./src/costmodel.ts) and
 [`src/pricing.ts`](./src/pricing.ts) — not an idealized model. Run
-`npx @m8t-labs/cache-cash --explain` to see all of it with your own numbers substituted in.
+`npx cache-refund --explain` to see all of it with your own numbers substituted in.
 
 - **`score_version: 1`** (printed in `--json`; the efficiency score is only
   comparable within one score version).
@@ -94,7 +94,7 @@ summary.
 
 ## 4. The symmetric counterfactual
 
-The break-even above is the pure-5m intuition. The actual delta `cache-cash`
+The break-even above is the pure-5m intuition. The actual delta `cache-refund`
 reports is computed by a **symmetric, regime-aware counterfactual**: it prices
 what a *fully-5m world* and a *fully-1h world* would each bill on your exact
 tokens, then subtracts. This is `counterfactual()` in `src/costmodel.ts`.
@@ -150,7 +150,7 @@ of thousands — the parity test asserts it stays under 5% of 5m write cost).
 
 ## 5. Relationship to the oracle (the exact identity)
 
-`cache-cash`'s TypeScript analyzer is cross-checked against an independent Python
+`cache-refund`'s TypeScript analyzer is cross-checked against an independent Python
 oracle ([`tools/oracle/analyze_cache_ttl.py`](./tools/oracle/analyze_cache_ttl.py))
 on the author's real corpus. **Bucket totals, token totals, turn counts, R_read,
 and R/C match the oracle exactly.** The delta differs by a *named, exact
@@ -325,7 +325,7 @@ only to `delta30d`.
   cache strategies against real billed tokens have shown simple threshold
   policies beating fitted models on bursty human arrival patterns — in one such
   backtest, six modeled strategies all lost to a one-line heuristic.
-  `cache-cash` ships the threshold (39.47%) and defers the full simulator to v2
+  `cache-refund` ships the threshold (39.47%) and defers the full simulator to v2
   for exactly this reason.
 - **Published pricing, re-derived.** The per-TTL write multipliers (1.25× / 2×)
   and the 0.1× read rate come from Anthropic's published pricing tables and are
@@ -333,11 +333,11 @@ only to `delta30d`.
 
 ## 13. "Backtested against N weeks of real usage"
 
-Every number `cache-cash` prints is computed over **your own real transcripts**
+Every number `cache-refund` prints is computed over **your own real transcripts**
 for the selected window — there is no synthetic model of your behavior. The
 author's launch figures are computed over **590 sessions / 43,783 turns spanning
 84 days** of real Claude Code usage. The oracle cross-check (bucket-exact,
 delta-exact-to-a-named-correction), the golden unit fixtures, and a
 hand-re-derivation of every number in the launch screenshot are the trust
-surface. Every claim in a checkup is traceable: **`npx @m8t-labs/cache-cash --explain`
+surface. Every claim in a checkup is traceable: **`npx cache-refund --explain`
 prints the formula with your inputs, and this document derives every constant.**

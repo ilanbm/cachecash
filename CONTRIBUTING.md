@@ -1,4 +1,4 @@
-# Contributing to cache-cash
+# Contributing to cache-refund
 
 Thanks for helping. This is a small, deliberately-scoped tool; the bar for
 changes is "does it make a number more correct, more honest, or more useful."
@@ -6,9 +6,9 @@ changes is "does it make a number more correct, more honest, or more useful."
 ## Wrong-number reports are the priority lane
 
 A wrong number in public is the worst thing that can happen to a tool whose
-entire pitch is "trust this math." So **a report that `cache-cash` printed a
+entire pitch is "trust this math." So **a report that `cache-refund` printed a
 figure that doesn't match reality jumps the queue.** Open a
-[wrong-number issue](https://github.com/m8t-labs/cachecash/issues/new?template=wrong-number.yml);
+[wrong-number issue](https://github.com/m8t-labs/cache-refund/issues/new?template=wrong-number.yml);
 it asks for your `--json` and `--explain` output so the exact figure can be
 reproduced and traced through the formula. Those outputs contain **token counts
 and timestamps only — no conversation content** (that is the whole privacy model;
@@ -18,8 +18,8 @@ ask for a minimal *synthetic* fixture, never your real prompts.
 ## Dev setup
 
 ```bash
-git clone https://github.com/m8t-labs/cachecash
-cd cachecash
+git clone https://github.com/m8t-labs/cache-refund
+cd cache-refund
 npm install          # devDependencies only — see the zero-dep rule below
 npm run build        # tsc -> dist/
 npm test             # vitest: unit math + render snapshots + oracle parity
@@ -33,7 +33,7 @@ machine with no Claude Code history still goes green on the rest of the suite.
 
 ## The zero-dependency rule (non-negotiable)
 
-`cache-cash` ships with **zero runtime `dependencies`**. The npx cold-start is
+`cache-refund` ships with **zero runtime `dependencies`**. The npx cold-start is
 the first impression, and "no dependencies to audit" is a trust line for a tool
 that reads your `~/.claude` directory. Only these `devDependencies` are allowed:
 `typescript`, `vitest`, `@types/node`. A PR that adds a runtime dependency will

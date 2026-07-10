@@ -26,9 +26,9 @@ import { fixtureEndingAEnable } from "./fixtures/summaries.js";
 
 describe("share intent URLs", () => {
   it("x.com intent URL-encodes the text", () => {
-    const url = xIntentUrl("hello #cachecash & more");
+    const url = xIntentUrl("hello #cacherefund & more");
     expect(url.startsWith("https://x.com/intent/post?text=")).toBe(true);
-    expect(url).toContain("%23cachecash");
+    expect(url).toContain("%23cacherefund");
     expect(url).toContain("%26");
     expect(url).not.toContain(" ");
   });
@@ -91,7 +91,7 @@ describe("clipboard fallback path (fake spawn, no real system access)", () => {
 describe("share-prompt frequency guard (temp HOME — never the real one)", () => {
   let home: string;
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "cache-cash-share-"));
+    home = mkdtempSync(join(tmpdir(), "cache-refund-share-"));
   });
   afterEach(() => {
     rmSync(home, { recursive: true, force: true });
@@ -101,7 +101,7 @@ describe("share-prompt frequency guard (temp HOME — never the real one)", () =
     expect(sharePromptShown(home)).toBe(false);
     recordSharePromptShown(home);
     expect(sharePromptShown(home)).toBe(true);
-    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-cash.json"), "utf8"));
+    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-refund.json"), "utf8"));
     expect(typeof raw.sharePrompt.shownAt).toBe("string");
   });
 
@@ -116,7 +116,7 @@ describe("share-prompt frequency guard (temp HOME — never the real one)", () =
     const res = applyEnable({ home, summary: fixtureEndingAEnable });
     expect(res.applied).toBe(true);
     expect(sharePromptShown(home)).toBe(true);
-    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-cash.json"), "utf8"));
+    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-refund.json"), "utf8"));
     expect(typeof raw.sharePrompt.shownAt).toBe("string");
     expect(typeof raw.enabled_at).toBe("string"); // real baseline fields landed too
   });
@@ -125,7 +125,7 @@ describe("share-prompt frequency guard (temp HOME — never the real one)", () =
     const res = applyEnable({ home, summary: fixtureEndingAEnable });
     expect(res.applied).toBe(true);
     recordSharePromptShown(home);
-    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-cash.json"), "utf8"));
+    const raw = JSON.parse(readFileSync(join(home, ".claude", "cache-refund.json"), "utf8"));
     expect(typeof raw.enabled_at).toBe("string");
     expect(typeof raw.sharePrompt.shownAt).toBe("string");
     expect(raw.efficiencyScore).toBe(fixtureEndingAEnable.efficiencyScore);

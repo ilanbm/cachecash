@@ -2,12 +2,12 @@
 /**
  * The full CLI surface.
  *
- *   npx @m8t-labs/cache-cash                 full checkup
- *   npx @m8t-labs/cache-cash card            score box + top Wrapped line
- *   npx @m8t-labs/cache-cash enable          confirmed 1h-TTL enable flow
- *   npx @m8t-labs/cache-cash revert          confirmed 5m-TTL revert flow
- *   npx @m8t-labs/cache-cash verify          post-enable TTL check
- *   npx @m8t-labs/cache-cash recheck         baseline comparison
+ *   npx cache-refund                 full checkup
+ *   npx cache-refund card            score box + top Wrapped line
+ *   npx cache-refund enable          confirmed 1h-TTL enable flow
+ *   npx cache-refund revert          confirmed 5m-TTL revert flow
+ *   npx cache-refund verify          post-enable TTL check
+ *   npx cache-refund recheck         baseline comparison
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
  *   --no-color · --all-time · --json · --md · --compact · --explain ·
@@ -251,7 +251,7 @@ function promptBranch(): Promise<Branch> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     rl.question(
-      "cache-cash: couldn't tell how you pay from transcripts or settings.\n" +
+      "cache-refund: couldn't tell how you pay from transcripts or settings.\n" +
         "How do you pay for Claude Code — (s)ubscription or (a)PI/Bedrock/Vertex? [s/a] ",
       (answer) => {
         rl.close();
@@ -276,7 +276,7 @@ async function main(): Promise<number> {
 
   // enable/revert are first-class subcommands and must work in a HOME with
   // zero transcripts — the settings edit needs no Summary. Route them BEFORE
-  // the analysis pipeline. --json is exempt: `cache-cash enable --json` is a
+  // the analysis pipeline. --json is exempt: `cache-refund enable --json` is a
   // Summary dump and never writes, so it keeps the pipeline path below.
   // verify/recheck DO need transcripts (they analyze them) and keep their
   // pipeline dependency unchanged.
@@ -472,7 +472,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Standalone `cache-cash enable` / `cache-cash revert` (first-class
+ * Standalone `cache-refund enable` / `cache-refund revert` (first-class
  * subcommands). Runs BEFORE the analysis pipeline — the settings edit needs
  * no Summary, so a HOME with zero transcripts can still enable/revert;
  * enable/revert must work without any transcripts present, unlike the
@@ -491,7 +491,7 @@ function sleep(ms: number): Promise<void> {
 async function runStandaloneAction(args: Args): Promise<number> {
   const verb: "enable" | "revert" = args.subcommand === "enable" ? "enable" : "revert";
   const interactive = process.stdout.isTTY && !process.env.CI;
-  const verbLabel = verb === "enable" ? "Enable 1h now" : "Revert to 5m now";
+  const verbLabel = verb === "enable" ? "Claim your cache refund (sets 1h TTL)" : "Revert to 5m now";
 
   let confirmed = args.yes;
   if (!confirmed && interactive) {
@@ -501,7 +501,7 @@ async function runStandaloneAction(args: Args): Promise<number> {
     process.stdout.write(
       interactive
         ? "Nothing changed.\n"
-        : `(non-interactive: pass --yes to apply: \`cache-cash ${verb} --yes\`)\n`,
+        : `(non-interactive: pass --yes to apply: \`cache-refund ${verb} --yes\`)\n`,
     );
     return 0;
   }
@@ -547,7 +547,7 @@ async function maybeConsentFromEnding(
   // (piped) also never prompts: print the manual instruction and exit 0 —
   // never prompt when not attached to a TTY.
   const interactive = process.stdout.isTTY && !process.env.CI;
-  const verbLabel = consentVerb === "enable" ? "Enable 1h now" : "Revert to 5m now";
+  const verbLabel = consentVerb === "enable" ? "Claim your cache refund (sets 1h TTL)" : "Revert to 5m now";
 
   let confirmed = args.yes;
   if (!confirmed && interactive) {
@@ -557,7 +557,7 @@ async function maybeConsentFromEnding(
   if (!confirmed) {
     if (!interactive && !args.yes) {
       process.stdout.write(
-        `\n(non-interactive: pass --yes to apply, or run \`cache-cash ${consentVerb}\` from a terminal)\n`,
+        `\n(non-interactive: pass --yes to apply, or run \`cache-refund ${consentVerb}\` from a terminal)\n`,
       );
     }
     return 0;
@@ -578,6 +578,6 @@ async function maybeConsentFromEnding(
 main()
   .then((code) => process.exit(code))
   .catch((err) => {
-    process.stderr.write(`cache-cash: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(`cache-refund: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
     process.exit(2);
   });

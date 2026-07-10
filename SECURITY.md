@@ -2,7 +2,7 @@
 
 ## What this tool touches
 
-`cache-cash` is deliberately narrow: it reads the `usage` token counts and
+`cache-refund` is deliberately narrow: it reads the `usage` token counts and
 timestamps from your local Claude Code transcripts, does arithmetic, and — only
 with your explicit confirmation — writes one env line to `~/.claude/settings.json`
 (with a backup). It has **zero runtime dependencies** and makes **no network
@@ -31,4 +31,4 @@ in the release notes unless you prefer otherwise.
 ## Supported versions
 
 Only the latest published version is supported. The tool is a read-mostly CLI —
-just update: `npx @m8t-labs/cache-cash@latest`.
+just update: `npx cache-refund@latest`.

@@ -1,37 +1,37 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 1`] = `
-"cache-cash - score 71.2/100 (leaking real money)
+"cache-refund - score 71.2/100 (leaking real money)
 R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
 biggest miss: 441K-token re-warm - $7.62 in one turn
 worst day: 2026-06-28 - $62.40 leaked
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
   > Your biggest single miss: a 441K-token re-warm - $7.62 in one turn.
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 2`] = `
-"cache-cash - score 96.3/100 (certified optimal)
+"cache-refund - score 96.3/100 (certified optimal)
 R/C = 5.0% <= break-even 39.5% - 1h would cost ~$48.00/30d MORE
 biggest miss: 88K-token re-warm - $0.61 in one turn
 worst day: 2026-06-15 - $4.10 leaked
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
   > Your peak hour is 10:00 - 260 turns, more than any other hour.
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 3`] = `
-"cache-cash - score 98.5/100 (excellent)
+"cache-refund - score 98.5/100 (excellent)
 R/C = 13.7% recoverable (break-even 39.5%) - 1h is already yours OK
 biggest miss: 612K-token re-warm - $7.03-eq in one turn
 worst day: 2026-06-10 - $49.21-eq leaked
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
   > Your peak hour is 00:00 - 4,774 turns, more than any other hour.
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > --explain, subscriber fixture 1`] = `
-"cache-cash --explain — every formula, your numbers substituted
+"cache-refund --explain — every formula, your numbers substituted
 ============================================================
 
 Gap classes (per turn vs previous turn, same session):
@@ -70,7 +70,7 @@ Full derivation + worked example: METHODOLOGY.md"
 `;
 
 exports[`snapshots (ANSI-stripped) > --md, all three fixtures 1`] = `
-"### cache-cash checkup
+"### cache-refund checkup
 
 **Score:** 71.2 / 100 — leaking real money
 
@@ -89,13 +89,13 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 1`] = `
 **Biggest single miss:** 441K-token re-warm — $7.62 in one turn.
 **Worst day:** 2026-06-28 — $62.40 leaked.
 
-**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx @m8t-labs/cache-cash enable\` to apply.
+**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx cache-refund enable\` to apply.
 
-_methodology: npx @m8t-labs/cache-cash --explain_"
+_methodology: npx cache-refund --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > --md, all three fixtures 2`] = `
-"### cache-cash checkup
+"### cache-refund checkup
 
 **Score:** 96.3 / 100 — certified optimal
 
@@ -116,11 +116,11 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 2`] = `
 
 **Verdict:** certified optimal ✓ — you're on the cheaper TTL for your pattern.
 
-_methodology: npx @m8t-labs/cache-cash --explain_"
+_methodology: npx cache-refund --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
-"### cache-cash checkup
+"### cache-refund checkup
 
 **Score:** 98.5 / 100 — excellent
 
@@ -142,11 +142,11 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 3`] = `
 **Verdict:** 1h already yours (subscription) ✓ — your 1h cache saved you ~$2,500.95 USD-equivalent (API list rates) vs a 5m world in the last 90 days.
 Caching saved you $33,866.02 USD-equivalent (API list rates) vs uncached this window.
 
-_methodology: npx @m8t-labs/cache-cash --explain_"
+_methodology: npx cache-refund --explain_"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
-"+--- cache-cash ----------------------------------------+
+"+--- cache-refund --------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      71.2 / 100                       |
@@ -157,11 +157,11 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 1`] = `
 
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
 
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
-"+--- cache-cash ----------------------------------------+
+"+--- cache-refund --------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      96.3 / 100                       |
@@ -172,11 +172,11 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 2`] = `
 
   > Worst day: 2026-06-15 leaked $4.10 (410K tokens) to expired cache.
 
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
-"+--- cache-cash ----------------------------------------+
+"+--- cache-refund --------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
 |         saved ~$2,500.95-eq vs 5m (last 90d)          |
@@ -187,18 +187,18 @@ exports[`snapshots (ANSI-stripped) > card, all three fixtures 3`] = `
 
   > Model switches invalidated 70.3M tokens of cache ($513.86-eq).
 
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending A (enable) full render 1`] = `
-"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+"cache-refund - 100% local. Token counts + timestamps. No content, no network.
 
 CHECKUP
   OK scanned 42 sessions, 3,100 turns (last 90 days)
   OK TTL received (last 7d): 5m OK
   [!] ttl-expiry re-warms: 9.0M tokens ($420.50)
 
-+--- cache-cash ----------------------------------------+
++--- cache-refund --------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      71.2 / 100                       |
@@ -233,19 +233,19 @@ the 30-day window analyzed).
 This edits ~/.claude/settings.json (backed up first). Applies to new sessions
 only.
 
-methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+methodology: npx cache-refund --explain
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending B (certified optimal) full render 1`] = `
-"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+"cache-refund - 100% local. Token counts + timestamps. No content, no network.
 
 CHECKUP
   OK scanned 80 sessions, 5,200 turns (last 90 days)
   OK TTL received (last 7d): 5m OK
   [!] ttl-expiry re-warms: 2.0M tokens ($18.20)
 
-+--- cache-cash ----------------------------------------+
++--- cache-refund --------------------------------------+
 |                                                       |
 |                CACHE EFFICIENCY SCORE                 |
 |                      96.3 / 100                       |
@@ -268,7 +268,7 @@ YOUR CACHE, WRAPPED
   > Your biggest single miss: a 88K-token re-warm - $0.61 in one turn.
   > You've used Claude Code 4 days in a row (33 active days this window).
 
-+--- cache-cash ----------------------------------------+
++--- cache-refund --------------------------------------+
 |                                                       |
 |                 CERTIFIED OPTIMAL OK                  |
 |                                                       |
@@ -281,19 +281,19 @@ The 5-minute TTL is already optimal for your pattern - switching to 1h would
 cost ~$48.00/30d more.
 proof: actual $246.00 vs 5m-world $246.00 vs 1h-world $342.00, over 60d.
 
-methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+methodology: npx cache-refund --explain
+share: npx cache-refund card  -  #cacherefund"
 `;
 
 exports[`snapshots (ANSI-stripped) > ending C (subscriber receipt) full render 1`] = `
-"cache-cash - 100% local. Token counts + timestamps only. No content, no network.
+"cache-refund - 100% local. Token counts + timestamps. No content, no network.
 
 CHECKUP
   OK scanned 590 sessions, 43,774 turns (last 90 days)
   OK TTL received (last 7d): 1h OK
   [!] ttl-expiry re-warms: 102.8M tokens ($618.60-eq)
 
-+--- cache-cash ----------------------------------------+
++--- cache-refund --------------------------------------+
 |                                                       |
 |                 YOUR 1H CACHE RECEIPT                 |
 |         saved ~$2,500.95-eq vs 5m (last 90d)          |
@@ -335,6 +335,6 @@ note: subagents still run on 5m even under 1h; overage drops you to 5m and bills
 API rates.
 watch (TTL regression alarm): coming in v1.1 - watch the repo
 
-methodology: npx @m8t-labs/cache-cash --explain
-share: npx @m8t-labs/cache-cash card  -  #cachecash"
+methodology: npx cache-refund --explain
+share: npx cache-refund card  -  #cacherefund"
 `;

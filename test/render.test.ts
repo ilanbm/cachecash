@@ -396,20 +396,20 @@ describe("branded box frame (v1.0.1): brand woven into the top border", () => {
   it("unicode frame: top border carries the brand, bottom is plain, width exactly 57", () => {
     const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(true), makeSym(false)));
     const lines = rendered.split("\n");
-    expect(lines[0]).toContain("─ cache-cash ");
+    expect(lines[0]).toContain("─ cache-refund ");
     expect(lines[0].startsWith("╭")).toBe(true);
     expect(lines[0].endsWith("╮")).toBe(true);
-    expect(lines[lines.length - 1]).not.toContain("cache-cash");
+    expect(lines[lines.length - 1]).not.toContain("cache-refund");
     expect(lines[lines.length - 1].startsWith("╰")).toBe(true);
     for (const line of lines) expect(line.length).toBe(boxWidth);
     // interior no longer carries the old dim brand row
     const interior = lines.slice(1, -1).join("\n");
-    expect(interior).not.toContain("cache-cash");
+    expect(interior).not.toContain("cache-refund");
   });
-  it("ASCII fallback frame: `+--- cache-cash ---...---+`, width exactly 57, byte-clean", () => {
+  it("ASCII fallback frame: `+--- cache-refund ---...---+`, width exactly 57, byte-clean", () => {
     const rendered = stripAnsi(numberBox(fixtureEndingCReceipt, makeInk(false), makeSym(true)));
     const lines = rendered.split("\n");
-    expect(lines[0].startsWith("+--- cache-cash ")).toBe(true);
+    expect(lines[0].startsWith("+--- cache-refund ")).toBe(true);
     expect(lines[0].endsWith("+")).toBe(true);
     for (const line of lines) {
       expect(line.length).toBe(boxWidth);
@@ -419,11 +419,11 @@ describe("branded box frame (v1.0.1): brand woven into the top border", () => {
   it("all three endings share the frame (score box A/B + receipt box C + certificate box B)", () => {
     for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
       const top = stripAnsi(numberBox(s, makeInk(false), makeSym(true))).split("\n")[0];
-      expect(top).toContain(" cache-cash ");
+      expect(top).toContain(" cache-refund ");
     }
     // the CERTIFIED OPTIMAL certificate box uses the same branded frame
     const bFull = stripAnsi(renderFull(fixtureEndingBOptimal, NON_TTY).lines.join("\n"));
-    const brandedTops = bFull.split("\n").filter((l) => l.startsWith("+--- cache-cash "));
+    const brandedTops = bFull.split("\n").filter((l) => l.startsWith("+--- cache-refund "));
     expect(brandedTops.length).toBe(2); // score box + certificate box
   });
 });
@@ -483,7 +483,7 @@ describe("share templates (v1.0.1 share CTA)", () => {
     expect(t).toContain("36.0% of my cache writes were avoidable re-warms");
     expect(t).toContain("(break-even: 39.5%)");
     expect(t).toContain(`~$${(380 * 3).toLocaleString("en-US", { minimumFractionDigits: 2 })}/quarter`);
-    expect(t).toContain("npx @m8t-labs/cache-cash #cachecash");
+    expect(t).toContain("npx cache-refund #cacherefund");
     expect(t.length).toBeLessThanOrEqual(280);
   });
   it("ending B: score + R/C + token scale, under 280 chars", () => {
@@ -527,7 +527,7 @@ describe("share templates (v1.0.1 share CTA)", () => {
     };
     const t = shareTemplate(monster);
     expect(t.length).toBeLessThanOrEqual(280);
-    expect(t).toContain("npx @m8t-labs/cache-cash #cachecash"); // CTA always survives
+    expect(t).toContain("npx cache-refund #cacherefund"); // CTA always survives
   });
 });
 
@@ -544,12 +544,12 @@ describe("scale line + card share hint (v1.0.1)", () => {
   });
   it("share hint points at `card` everywhere it renders", () => {
     const full = stripAnsi(renderFull(fixtureEndingCReceipt, NON_TTY).lines.join("\n"));
-    expect(full).toContain("share: npx @m8t-labs/cache-cash card");
-    expect(full).not.toContain("share: npx @m8t-labs/cache-cash --compact");
+    expect(full).toContain("share: npx cache-refund card");
+    expect(full).not.toContain("share: npx cache-refund --compact");
     const compact = stripAnsi(renderCompact(fixtureEndingCReceipt, NON_TTY));
-    expect(compact).toContain("share: npx @m8t-labs/cache-cash card");
+    expect(compact).toContain("share: npx cache-refund card");
     const card = stripAnsi(renderCard(fixtureEndingCReceipt, NON_TTY));
-    expect(card).toContain("share: npx @m8t-labs/cache-cash card");
+    expect(card).toContain("share: npx cache-refund card");
   });
 });
 

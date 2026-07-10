@@ -1,10 +1,10 @@
 name: release
 
-# Release mechanics for cache-cash. NOT a PR gate — invoked manually
+# Release mechanics for cache-refund. NOT a PR gate — invoked manually
 # (workflow_dispatch) or by a CD caller (workflow_call). OIDC trusted
 # publishing: no NPM_TOKEN. One-time seed before OIDC works: publish once
 # manually, then on npmjs.com → package → Settings → Trusted Publisher →
-# GitHub Actions → m8t-labs/cachecash, workflow release.yml.
+# GitHub Actions → m8t-labs/cache-refund, workflow release.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -59,9 +59,9 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [ -n "$(npm view "@m8t-labs/cache-cash@$version" version 2>/dev/null || true)" ]; then
+          if [ -n "$(npm view "cache-refund@$version" version 2>/dev/null || true)" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::@m8t-labs/cache-cash@$version already on npm — skipping publish"
+            echo "::notice::cache-refund@$version already on npm — skipping publish"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
@@ -99,17 +99,17 @@ jobs:
           set -euo pipefail
           mkdir consumer && cd consumer
           npm init -y >/dev/null
-          npm install "@m8t-labs/cache-cash@${DIST_TAG}"
+          npm install "cache-refund@${DIST_TAG}"
           # A runner has no ~/.claude/projects; the correct behavior is a
           # clean exit code 1 with the no-transcripts message. That proves
           # the bin resolves, node >=18 runs it, and the guard path works.
           set +e
-          out="$(npx @m8t-labs/cache-cash --json 2>&1)"
+          out="$(npx cache-refund --json 2>&1)"
           code=$?
           set -e
           echo "$out"
           if [ "$code" = "1" ] && echo "$out" | grep -q "No transcripts"; then
-            echo "cache-cash CLI OK (clean no-transcripts exit)"
+            echo "cache-refund CLI OK (clean no-transcripts exit)"
           else
             echo "unexpected exit $code" >&2
             exit 1

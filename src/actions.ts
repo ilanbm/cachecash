@@ -1,5 +1,5 @@
 /**
- * Actions API — the ONLY write path in cache-cash.
+ * Actions API — the ONLY write path in cache-refund.
  *
  * "100% local, read-only except one confirmed line" is enforced entirely by
  * this module. Treat every function here like a migration script:
@@ -75,8 +75,8 @@ export interface ActionResult {
 }
 
 const SETTINGS_REL = [".claude", "settings.json"];
-const BACKUP_REL = [".claude", "settings.json.cache-cash.bak"];
-const BASELINE_REL = [".claude", "cache-cash.json"];
+const BACKUP_REL = [".claude", "settings.json.cache-refund.bak"];
+const BASELINE_REL = [".claude", "cache-refund.json"];
 
 const ENABLE_KEY = "ENABLE_PROMPT_CACHING_1H";
 const FORCE_5M_KEY = "FORCE_PROMPT_CACHING_5M";
@@ -166,7 +166,7 @@ function readSettings(home: string): ReadResult {
       parseError:
         `${p}'s "env" key is present but is not a JSON object ` +
         `(got ${Array.isArray(envVal) ? "an array" : JSON.stringify(envVal)}). ` +
-        `cache-cash refuses to guess what to do with a malformed "env" block — ` +
+        `cache-refund refuses to guess what to do with a malformed "env" block — ` +
         `fix it by hand (it should be an object like {"SOME_KEY": "value"}) and ` +
         `try again. File was NOT modified.`,
     };
@@ -223,7 +223,7 @@ function serialize(doc: SettingsDoc): string {
  * protects against a bad WRITE (crash mid-syscall).
  */
 function atomicWriteFileSync(path: string, contents: string): void {
-  const tmp = `${path}.cache-cash.tmp.${process.pid}.${Date.now()}`;
+  const tmp = `${path}.cache-refund.tmp.${process.pid}.${Date.now()}`;
   writeFileSync(tmp, contents, "utf8");
   renameSync(tmp, path);
 }
@@ -276,7 +276,7 @@ interface BaselineFile {
    * v1.0.1 share-CTA frequency guard: set when the checkup's share prompt
    * has been shown once on this machine (aggregate metadata only — a
    * timestamp, never content). Lives in this file because the baseline is
-   * the one local state file cache-cash owns; readBaseline() still requires
+   * the one local state file cache-refund owns; readBaseline() still requires
    * `enabled_at`, so a share-only file (recorded before any enable) is
    * correctly NOT a recheck baseline.
    */
@@ -358,9 +358,9 @@ export function applyEnable(opts: ActionOpts): ActionResult {
     return {
       applied: false,
       message: [
-        "cache-cash: refusing to edit settings.json.",
+        "cache-refund: refusing to edit settings.json.",
         parseError,
-        "Fix the JSON by hand (or restore from a backup) and try again — cache-cash",
+        "Fix the JSON by hand (or restore from a backup) and try again — cache-refund",
         "will never overwrite a file it can't safely parse.",
       ],
     };
@@ -370,11 +370,11 @@ export function applyEnable(opts: ActionOpts): ActionResult {
     return {
       applied: false,
       message: [
-        `cache-cash: refusing to enable — ${FORCE_5M_KEY} is set.`,
+        `cache-refund: refusing to enable — ${FORCE_5M_KEY} is set.`,
         "That flag explicitly pins you to the 5m cache TTL (it exists to force 5m",
         "even on plans that would otherwise get 1h). Enabling 1h on top of it would",
         "be a silent no-op at best and a confusing conflict at worst.",
-        `Remove ${FORCE_5M_KEY} first (cache-cash revert can help) if you actually`,
+        `Remove ${FORCE_5M_KEY} first (cache-refund revert can help) if you actually`,
         "want 1h.",
       ],
     };
@@ -405,8 +405,8 @@ export function applyEnable(opts: ActionOpts): ActionResult {
 
   const message: string[] = [
     existed
-      ? `cache-cash: updated ${settingsPath(opts.home)} (backup: ${backupPath(opts.home)}).`
-      : `cache-cash: created ${settingsPath(opts.home)} (no previous file existed).`,
+      ? `cache-refund: updated ${settingsPath(opts.home)} (backup: ${backupPath(opts.home)}).`
+      : `cache-refund: created ${settingsPath(opts.home)} (no previous file existed).`,
     "",
     "Diff applied to the env block:",
     ...diff,
@@ -414,17 +414,17 @@ export function applyEnable(opts: ActionOpts): ActionResult {
     "This takes effect on your NEXT session — the flag only applies to sessions",
     "started after this change, not the one you're in right now.",
     "",
-    "Fully reversible: run `cache-cash revert` any time to undo this.",
+    "Fully reversible: run `cache-refund revert` any time to undo this.",
     "",
     "To confirm it actually landed: after a few turns in a fresh session, run",
-    "`cache-cash verify` (or `npx @m8t-labs/cache-cash --days 1`) — the TTL reality check",
+    "`cache-refund verify` (or `npx cache-refund --days 1`) — the TTL reality check",
     "reflects what your transcripts actually received, not what settings.json says.",
     "",
     ISSUE_49139,
   ];
 
   if (opts.summary) {
-    message.push("", `Baseline saved to ${baselinePath(opts.home)} — \`cache-cash recheck\` will use it later.`);
+    message.push("", `Baseline saved to ${baselinePath(opts.home)} — \`cache-refund recheck\` will use it later.`);
   }
 
   return { applied: true, message };
@@ -439,7 +439,7 @@ export function applyRevert(opts: ActionOpts): ActionResult {
     return {
       applied: false,
       message: [
-        "cache-cash: refusing to edit settings.json.",
+        "cache-refund: refusing to edit settings.json.",
         parseError,
         "Fix the JSON by hand (or restore from a backup) and try again.",
       ],
@@ -450,8 +450,8 @@ export function applyRevert(opts: ActionOpts): ActionResult {
     return {
       applied: false,
       message: [
-        "cache-cash: nothing to revert — settings.json doesn't exist, so the",
-        "1h flag was never set by cache-cash (or anything else) in the first place.",
+        "cache-refund: nothing to revert — settings.json doesn't exist, so the",
+        "1h flag was never set by cache-refund (or anything else) in the first place.",
       ],
     };
   }
@@ -476,14 +476,14 @@ export function applyRevert(opts: ActionOpts): ActionResult {
   const diff = envDiffLines(beforeEnv, afterEnv);
 
   const message: string[] = [
-    `cache-cash: updated ${settingsPath(opts.home)} (backup: ${backupPath(opts.home)}).`,
+    `cache-refund: updated ${settingsPath(opts.home)} (backup: ${backupPath(opts.home)}).`,
     "",
     "Diff applied to the env block:",
     ...diff.length > 0 ? diff : ["  (no ENABLE_PROMPT_CACHING_1H was set — nothing to remove)"],
     "",
     "This takes effect on your NEXT session.",
     "",
-    "Fully reversible: run `cache-cash enable` any time to switch back to 1h.",
+    "Fully reversible: run `cache-refund enable` any time to switch back to 1h.",
   ];
 
   if (opts.force) {
@@ -501,7 +501,7 @@ export function applyRevert(opts: ActionOpts): ActionResult {
 // ---------------------------------------------------------------- verify
 
 /**
- * `cache-cash verify` — re-runs the pipeline (no new transcript-reading
+ * `cache-refund verify` — re-runs the pipeline (no new transcript-reading
  * code: it re-runs run({days:1,...}) from pipeline.ts and reads
  * summary.ttlRealityCheck) over a small recent window.
  *
@@ -518,7 +518,7 @@ export async function runVerify(opts: ActionOpts): Promise<ActionResult> {
     return {
       applied: false,
       message: [
-        "cache-cash verify: no fresh sessions yet — do a few turns in a new session",
+        "cache-refund verify: no fresh sessions yet — do a few turns in a new session",
         "first, then run this again. (Looked for transcripts " +
           (baseline ? `since ${baseline.enabled_at}` : "in the last 24h") +
           ".)",
@@ -532,7 +532,7 @@ export async function runVerify(opts: ActionOpts): Promise<ActionResult> {
     return {
       applied: false,
       message: [
-        "cache-cash verify: no fresh sessions yet — no cache writes found in the",
+        "cache-refund verify: no fresh sessions yet — no cache writes found in the",
         "window checked. Do a few turns in a new session, then run this again.",
       ],
     };
@@ -542,7 +542,7 @@ export async function runVerify(opts: ActionOpts): Promise<ActionResult> {
     return {
       applied: false,
       message: [
-        `cache-cash verify: working end to end ✓`,
+        `cache-refund verify: working end to end ✓`,
         `Your transcripts show 1h cache writes landing (${fmtInt(reality.creation1h)} tokens` +
           ` at 1h vs ${fmtInt(reality.creation5m)} at 5m, last ${reality.windowDays}d).`,
         "The 1h TTL is actually in effect, not just set in settings.json.",
@@ -554,7 +554,7 @@ export async function runVerify(opts: ActionOpts): Promise<ActionResult> {
   return {
     applied: false,
     message: [
-      "cache-cash verify: still 5m — likely gateway/downgrade.",
+      "cache-refund verify: still 5m — likely gateway/downgrade.",
       `Your transcripts show 5m cache writes (${fmtInt(reality.creation5m)} tokens) and` +
         ` no 1h writes in the last ${reality.windowDays}d, even though the point of` +
         " enabling was to get 1h.",
@@ -568,7 +568,7 @@ export async function runVerify(opts: ActionOpts): Promise<ActionResult> {
 // --------------------------------------------------------------- recheck
 
 /**
- * `cache-cash recheck` — baseline vs since-enable actuals + counterfactual.
+ * `cache-refund recheck` — baseline vs since-enable actuals + counterfactual.
  * "since switching: ~$X saved" receipt.
  *
  * Math (no new analyzer logic — reuses costmodel.ts's existing counterfactual
@@ -586,9 +586,9 @@ export async function runRecheck(opts: ActionOpts): Promise<ActionResult> {
     return {
       applied: false,
       message: [
-        "cache-cash recheck: no baseline found — you haven't run `cache-cash enable`",
+        "cache-refund recheck: no baseline found — you haven't run `cache-refund enable`",
         "on this machine yet (or the baseline file was removed).",
-        "Run `cache-cash enable` first; recheck compares against the numbers saved",
+        "Run `cache-refund enable` first; recheck compares against the numbers saved",
         "at that moment.",
       ],
     };
@@ -601,7 +601,7 @@ export async function runRecheck(opts: ActionOpts): Promise<ActionResult> {
     return {
       applied: false,
       message: [
-        `cache-cash recheck: no sessions found since you enabled (${baseline.enabled_at}).`,
+        `cache-refund recheck: no sessions found since you enabled (${baseline.enabled_at}).`,
         "Use Claude Code for a while after enabling, then check back.",
       ],
     };
@@ -617,7 +617,7 @@ export async function runRecheck(opts: ActionOpts): Promise<ActionResult> {
   const currency = s.currency;
 
   const message: string[] = [
-    `cache-cash recheck: since switching (${baseline.enabled_at.slice(0, 10)}, ${days}d ago):`,
+    `cache-refund recheck: since switching (${baseline.enabled_at.slice(0, 10)}, ${days}d ago):`,
     "",
     `  ~${amount} ${currency} ${verb} vs a 5m world over that same activity.`,
     `  Efficiency score: ${baseline.efficiencyScore.toFixed(1)} -> ${s.efficiencyScore.toFixed(1)}` +
@@ -627,7 +627,7 @@ export async function runRecheck(opts: ActionOpts): Promise<ActionResult> {
     "",
     saved >= 0
       ? "This is the receipt — the switch is paying off."
-      : "This period cost more under 1h than 5m would have — worth a `cache-cash`" +
+      : "This period cost more under 1h than 5m would have — worth a `cache-refund`" +
           " full checkup to see if your pattern has shifted (e.g. much lower usage" +
           " volume can flip the break-even the other way).",
   ];

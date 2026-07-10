@@ -2,12 +2,12 @@
 
 There is a lot of advice floating around about cache-friendly Claude Code
 settings. Most of it is repeated without evidence. This page ranks the common
-advice **by how much evidence actually backs it** — from things `cache-cash`
+advice **by how much evidence actually backs it** — from things `cache-refund`
 can compute on *your own transcripts*, down to folklore you should hear and
 discount. The tool itself never gives advice it can't measure and price; this
 page covers the rest, honestly labeled.
 
-Every row points at what — if anything — `cache-cash` can measure for you.
+Every row points at what — if anything — `cache-refund` can measure for you.
 Trust the rows near the top; treat the rows near the bottom as folklore.
 
 **Evidence ladder:**
@@ -18,15 +18,15 @@ Trust the rows near the top; treat the rows near the bottom as folklore.
 
 ## Tier 1 — measured from your data (the tool proves it for you)
 
-These are not opinions. Run `cache-cash` and it computes the number on *your*
+These are not opinions. Run `cache-refund` and it computes the number on *your*
 transcripts.
 
-| Advice | What `cache-cash` measures | How to see it |
+| Advice | What `cache-refund` measures | How to see it |
 |---|---|---|
-| **If you're API-billed and your R/C clears 39.5%, switch to the 1-hour TTL.** | Your recoverable ratio R/C vs the exact break-even, and the symmetric-counterfactual dollar delta of switching. | `npx @m8t-labs/cache-cash` (the verdict box) / `npx @m8t-labs/cache-cash --explain` |
-| **Verify the TTL you actually received — don't trust the flag.** | The received-TTL split from your `ephemeral_5m/1h` usage fields over your recent window (catches silent server downgrades). | the "TTL received" header line; `npx @m8t-labs/cache-cash verify` after enabling |
+| **If you're API-billed and your R/C clears 39.5%, switch to the 1-hour TTL.** | Your recoverable ratio R/C vs the exact break-even, and the symmetric-counterfactual dollar delta of switching. | `npx cache-refund` (the verdict box) / `npx cache-refund --explain` |
+| **Verify the TTL you actually received — don't trust the flag.** | The received-TTL split from your `ephemeral_5m/1h` usage fields over your recent window (catches silent server downgrades). | the "TTL received" header line; `npx cache-refund verify` after enabling |
 | **Cut avoidable model switches mid-session.** | `model-switch` invalidation tokens and $ — every switch dumps the cache and re-writes at full markup. | the leak table row "Model-switch invalidations" |
-| **Know your worst re-warm events.** | The single biggest re-warm and your worst day, by net leak $. | `npx @m8t-labs/cache-cash --compact` |
+| **Know your worst re-warm events.** | The single biggest re-warm and your worst day, by net leak $. | `npx cache-refund --compact` |
 
 If a piece of advice can be moved into Tier 1 — computed from your transcripts,
 priced, and paired with a concrete fix — it gets built into the *tool* and
@@ -78,7 +78,7 @@ included only so you can discount it when you hear it.
 
 ---
 
-**The one rule.** The moment any advice here becomes something `cache-cash` can
+**The one rule.** The moment any advice here becomes something `cache-refund` can
 compute from your transcripts, price, and pair with a concrete fix, it graduates
 out of this page and into the tool. Everything that stays here stays because it
 *can't* be measured yet — read it with exactly that much trust. See

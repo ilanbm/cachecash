@@ -116,7 +116,7 @@ function boxRow(text: string, align: "center" | "left", side: string): string {
 export interface BoxFrame {
   /**
    * Brand text woven into the TOP border (v1.0.1 recognizable frame):
-   * `╭─── cache-cash ─────…─────╮` (ASCII: `+--- cache-cash ---...---+`).
+   * `╭─── cache-refund ─────…─────╮` (ASCII: `+--- cache-refund ---...---+`).
    * The bottom border stays plain (no text). Width stays exactly BOX_WIDTH.
    */
   brand?: string;
@@ -156,7 +156,7 @@ export function box(lines: Array<string | BoxLine>, ascii = false, frame: BoxFra
 
   let top: string;
   if (branded) {
-    // `╭─── cache-cash ────…────╮` — lead of 3 dashes, brand, then fill to
+    // `╭─── cache-refund ────…────╮` — lead of 3 dashes, brand, then fill to
     // exactly BOX_WIDTH visible columns.
     const lead = `${tl}${h.repeat(3)} ${frame.brand} `;
     const fill = Math.max(0, BOX_WIDTH - lead.length - 1);
