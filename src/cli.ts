@@ -318,6 +318,7 @@ async function maybeSharePrompt(summary: Summary, noShare: boolean, planPrice?: 
       revealFile,
       openExternal,
       write: (s) => process.stdout.write(s),
+      pauseBeforeOpen: () => new Promise((r) => setTimeout(r, 1100)),
     });
     return;
   }

@@ -266,6 +266,12 @@ export interface ShareAcceptDeps {
   openExternal: (url: string) => Promise<boolean>;
   /** stdout sink (process.stdout.write in production). */
   write: (s: string) => void;
+  /**
+   * Pause between the clipboard tip and the browser launch, so the line
+   * registers before the browser steals window focus. Production: ~1s real
+   * sleep; tests inject a no-op.
+   */
+  pauseBeforeOpen?: () => Promise<void>;
 }
 
 /**
@@ -300,6 +306,9 @@ export async function runShareAccept(url: string, deps: ShareAcceptDeps): Promis
     // Image generation is a convenience — never let it break the share flow.
     deps.write("(couldn't write the card image — screenshot the card above instead)\n");
   }
+
+  // One readable beat before the browser takes focus.
+  if (deps.pauseBeforeOpen) await deps.pauseBeforeOpen();
 
   const opened = await deps.openExternal(url);
   if (!opened) {
