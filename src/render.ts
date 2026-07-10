@@ -668,9 +668,28 @@ const SHARE_CTA_TAIL = "npx cache-refund #cacherefund";
 const SHARE_BUDGET = 280;
 
 /**
- * Prefilled social-post text for the share CTA (v1.0.1), per ending. Rules:
+ * Share of the cache bill the 1h-vs-5m delta represents, as a whole percent,
+ * clamped to [1, 99] (v1.0.2: tweets get percentage framing in plain
+ * English; the terminal keeps its labeled dollar conventions).
+ */
+function billSharePct(delta: number, denom: number): number {
+  if (denom <= 0) return 1;
+  return Math.min(99, Math.max(1, Math.round((Math.abs(delta) / denom) * 100)));
+}
+
+/** windowLabel without its leading preposition, for "over <window>" contexts. */
+function windowPhrase(s: Summary): string {
+  return windowLabel(s).replace(/^in /, "").replace(/^over /, "");
+}
+
+/**
+ * Prefilled social-post text for the share CTA, per ending. Rules (v1.0.2):
  *   - NEVER includes project names (share-safe by construction — only
- *     aggregate numbers, formatted exactly as the checkup renders them).
+ *     aggregate numbers).
+ *   - Plain English, no terminal jargon: no "-eq", no "5m world" — the
+ *     subscriber form says "in API-value" (the honest plain-English form of
+ *     the $-equivalent rule; never a bare "saved $" for subscribers) and
+ *     the money is framed as a percentage of the cache bill.
  *   - <= 280 chars after substitution; the absolute-scale clause is the
  *     first thing truncated if a pathological corpus overflows the budget.
  *   - Social prose, not terminal output: real em dashes / middle dots
@@ -680,8 +699,6 @@ const SHARE_BUDGET = 280;
 export function shareTemplate(s: Summary): string {
   const kind = decideEnding(s);
   const cf = s.counterfactual;
-  const rc = fmtPct(s.recoverableRatio);
-  const thresh = fmtPct(s.threshold);
   const score = s.efficiencyScore.toFixed(1);
   const tokens = fmtTokensCompact(s.tokens.creationTotal + s.tokens.readTotal);
   const sessions = s.scope.sessions.toLocaleString();
@@ -689,33 +706,29 @@ export function shareTemplate(s: Summary): string {
   let full: string;
   let scaleClause: string;
 
-  if (kind === "A-enable") {
-    const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
+  if (kind === "A-enable" || kind === "A-revert") {
+    // pct denominator = the cache bill in the world the reader is stuck in
+    // today: the 5m bill for enable, their current 1h bill for revert.
+    const pct = billSharePct(cf.delta1hMinus5m, kind === "A-enable" ? cf.cost5m : cf.cost1h);
     scaleClause = ""; // A's template carries no scale clause
     full =
-      `cache-refund found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
-      `${rc} of my cache writes were avoidable re-warms (break-even: ${thresh}). ` +
-      `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
-  } else if (kind === "A-revert") {
-    const quarterly = fmtDollars(Math.abs(cf.delta30d) * 3);
-    scaleClause = "";
-    full =
-      `cache-refund found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I was donating to the cloud — ` +
-      `the 1h TTL costs more than 5m for my pattern. ` +
-      `One env line recovers ~${quarterly}/quarter. Check yours: ${SHARE_CTA_TAIL}`;
+      `cache-refund found ${fmtDollars(Math.abs(cf.delta1hMinus5m))} I'm leaving on the table — ` +
+      `${pct}% of my Claude Code cache bill, recoverable with one config line. ` +
+      `Check yours: ${SHARE_CTA_TAIL}`;
   } else if (kind === "B") {
-    const rightTtl = s.branch === "api-1h" ? "The 1-hour TTL" : "The 5-minute default";
-    scaleClause = `, proven over ${tokens} tokens`;
+    const setting = s.branch === "api-1h" ? "My 1-hour cache setting" : "The default cache setting";
+    scaleClause = `, verified over ${tokens} tokens`;
     full =
-      `Ran cache-refund expecting bad news — got CERTIFIED OPTIMAL ${score}/100. ` +
-      `${rightTtl} is actually right for how I work (R/C ${rc} < ${thresh})${scaleClause}. ` +
+      `Ran cache-refund expecting bad news — CERTIFIED OPTIMAL ${score}/100. ` +
+      `${setting} is actually right for how I work${scaleClause}. ` +
       SHARE_CTA_TAIL;
   } else {
-    scaleClause = ` across ${tokens} tokens · ${sessions} sessions`;
+    const pct = billSharePct(cf.delta1hMinus5m, cf.cost5m);
+    scaleClause = `, across ${tokens} tokens · ${sessions} sessions`;
     full =
-      `My 1h Claude Code cache absorbed ~${fmtDollars(Math.abs(cf.delta1hMinus5m))}-eq vs a 5m world ` +
-      `${windowLabel(s)} — efficiency ${score}/100${scaleClause}, ` +
-      `measured locally from my own transcripts. ${SHARE_CTA_TAIL}`;
+      `My 1h prompt cache cut my Claude Code cache costs ~${pct}% — ` +
+      `that's ≈${fmtDollars(Math.abs(cf.delta1hMinus5m))} in API-value over ${windowPhrase(s)}` +
+      `${scaleClause}. ${SHARE_CTA_TAIL}`;
   }
 
   if (full.length > SHARE_BUDGET && scaleClause.length > 0) {

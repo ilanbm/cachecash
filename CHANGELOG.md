@@ -13,6 +13,18 @@ All notable changes to this project are documented here. The format follows
   `npx cache-refund`; the installed command is `cache-refund`; the hashtag is
   `#cacherefund`. The enable prompt now reads "Claim your cache refund".
   Baseline and backup filenames follow the new name.
+- **Share text in plain English**: prefilled posts now use percentage framing
+  ("~14% of my cache costs, ≈$X in API-value") — no terminal jargon (`-eq`,
+  "5m world") in tweets; the terminal keeps its labeled conventions.
+- **Generated share image**: accepting the share prompt ([x]/[b]) writes a
+  ready-to-attach `cache-refund-card.svg` (dark terminal-window card, your
+  numbers, never project names) to `~/Downloads` (or the current directory),
+  converts to PNG on macOS when possible, and reveals it in Finder — no more
+  manual screenshot.
+- **Closing card**: interactive checkups now end by dealing your card — the
+  share-ready block is re-printed as the final frame, so the tail of the
+  terminal is the screenshot.
+- **Prompt label**: `[c] copy for Slack` → `[c] copy to clipboard`.
 
 ## [1.0.1] — 2026-07-10
 

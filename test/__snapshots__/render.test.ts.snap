@@ -2,7 +2,7 @@
 
 exports[`snapshots (ANSI-stripped) > --compact, all three fixtures 1`] = `
 "cache-refund - score 71.2/100 (leaking real money)
-R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
+R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$80.00/30d
 biggest miss: 441K-token re-warm - $7.62 in one turn
 worst day: 2026-06-28 - $62.40 leaked
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
@@ -89,7 +89,7 @@ exports[`snapshots (ANSI-stripped) > --md, all three fixtures 1`] = `
 **Biggest single miss:** 441K-token re-warm — $7.62 in one turn.
 **Worst day:** 2026-06-28 — $62.40 leaked.
 
-**Verdict:** switching to the 1h TTL saves ~$380.00/30d. Run \`npx cache-refund enable\` to apply.
+**Verdict:** switching to the 1h TTL saves ~$80.00/30d. Run \`npx cache-refund enable\` to apply.
 
 _methodology: npx cache-refund --explain_"
 `;
@@ -212,7 +212,7 @@ GAP BREAKDOWN (cache-write tokens by re-warm gap)
   recoverable  #######-------------  36.0%  9.0M
   cold (>60m)  ###-----------------  16.0%  4.0M
 
-R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$380.00/30d
+R/C = 36.0% > break-even 39.5% - switching to 1h saves ~$80.00/30d
 
 YOUR CACHE, WRAPPED
   > Worst day: 2026-06-28 leaked $62.40 (3.1M tokens) to expired cache.
@@ -224,7 +224,7 @@ YOUR CACHE, WRAPPED
 THE FIX
 
 You're on the 5-minute cache TTL. Your recoverable ratio (36.0%) is above the
-39.5% break-even - switching to the 1-hour TTL saves ~$380.00/30d (~$380.00 over
+39.5% break-even - switching to the 1-hour TTL saves ~$80.00/30d (~$80.00 over
 the 30-day window analyzed).
 
   diff:

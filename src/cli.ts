@@ -38,9 +38,11 @@ import {
   bskyIntentUrl,
   copyToClipboard,
   openExternal,
+  revealFile,
   SHARE_PROMPT_LINE,
   xIntentUrl,
 } from "./share.js";
+import { writeCardImage } from "./cardimage.js";
 import {
   checkupLines,
   decideEnding,
@@ -232,7 +234,23 @@ async function maybeSharePrompt(summary: Summary, force: boolean): Promise<void>
     if (!opened) {
       process.stdout.write(`couldn't launch a browser — open this yourself:\n${url}\n`);
     }
-    process.stdout.write("tip: screenshot the card above and attach it.\n");
+    // Generated share image (v1.0.2, replaces the screenshot ask): write the
+    // SVG card (+ best-effort PNG on darwin — X attachments need a raster),
+    // reveal it in the file manager (darwin), and point at the file.
+    try {
+      const { svgPath, pngPath } = writeCardImage(summary);
+      const file = pngPath ?? svgPath;
+      revealFile(file);
+      process.stdout.write(`card image saved: ${file} — attach it to the post\n`);
+      if (!pngPath) {
+        process.stdout.write(
+          "(png conversion unavailable — svg attached tools may not accept; screenshot the card above as backup)\n",
+        );
+      }
+    } catch {
+      // Image generation is a convenience — never let it break the share flow.
+      process.stdout.write("(couldn't write the card image — screenshot the card above instead)\n");
+    }
     return;
   }
   if (answer === "c") {
@@ -451,10 +469,18 @@ async function renderCheckup(
   process.stdout.write(shareRail(ink, sym).join("\n") + "\n");
 
   const code = await maybeConsentFromEnding(args, summary, ending.needsConsent, ending.consentVerb);
-  // Share CTA, after the rail and after any consent flow (TTY path only —
-  // the non-TTY branch above never prompts). Once per machine; the
-  // post-enable re-ask inside maybeConsentFromEnding records first, which
-  // makes this call a no-op in that flow.
+
+  // Closing card (v1.0.2, TTY full checkup only): the run ends by dealing
+  // your card — the exact `card` block re-printed as the final frame, so the
+  // tail of the terminal IS the screenshot. After the rail (and any consent
+  // flow, which would otherwise push it up), before the share prompt.
+  // Non-TTY/CI output is unchanged (this is the TTY branch only).
+  process.stdout.write("\n" + renderCard(summary, opts) + "\n");
+
+  // Share CTA, after the closing card (TTY path only — the non-TTY branch
+  // above never prompts). Once per machine; the post-enable re-ask inside
+  // maybeConsentFromEnding records first, which makes this call a no-op in
+  // that flow.
   await maybeSharePrompt(summary, false);
   return code;
 }

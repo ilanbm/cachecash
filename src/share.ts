@@ -25,7 +25,7 @@ export type SpawnLike = (
 };
 
 export const SHARE_PROMPT_LINE =
-  "share this? [x] post to X · [b] Bluesky · [c] copy for Slack · [Enter] skip ";
+  "share this? [x] post to X · [b] Bluesky · [c] copy to clipboard · [Enter] skip ";
 
 export function xIntentUrl(text: string): string {
   return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
@@ -82,6 +82,25 @@ export function openExternal(
       resolve(false);
     }
   });
+}
+
+/**
+ * Reveal a file in the platform file manager. darwin-only (`open -R`,
+ * best-effort, fire-and-forget); a no-op elsewhere per the v1.0.2 spec.
+ */
+export function revealFile(
+  path: string,
+  platform: NodeJS.Platform = process.platform,
+  spawnFn: SpawnLike = spawn as unknown as SpawnLike,
+): void {
+  if (platform !== "darwin") return;
+  try {
+    const child = spawnFn("open", ["-R", path], { stdio: ["ignore", "ignore", "ignore"], detached: true });
+    child.on("error", () => {});
+    child.unref?.();
+  } catch {
+    // best-effort only
+  }
 }
 
 /**

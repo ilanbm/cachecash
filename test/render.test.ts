@@ -473,34 +473,48 @@ describe("scan-progress frames (v1.0.1 progress-line fix): finalized, never stuc
   });
 });
 
-describe("share templates (v1.0.1 share CTA)", () => {
+describe("share templates (v1.0.2: plain English, percentage framing)", () => {
   const PROJECT_LEAKS = ["orders-api", "web-dashboard", "widgetco", "quietco", "-Users-"];
 
-  it("ending A: delta + R/C + quarterly figure, under 280 chars", () => {
+  it("ending A: dollar hook + pct-of-bill + config-line claim, under 280 chars", () => {
     const t = shareTemplate(fixtureEndingAEnable);
     expect(decideEnding(fixtureEndingAEnable)).toBe("A-enable");
-    expect(t).toContain("$380.00 I was donating to the cloud");
-    expect(t).toContain("36.0% of my cache writes were avoidable re-warms");
-    expect(t).toContain("(break-even: 39.5%)");
-    expect(t).toContain(`~$${(380 * 3).toLocaleString("en-US", { minimumFractionDigits: 2 })}/quarter`);
-    expect(t).toContain("npx cache-refund #cacherefund");
+    // |delta -80| / cost5m 246.25 = 32.5% -> rounds to 32
+    expect(t).toContain("cache-refund found $80.00 I'm leaving on the table");
+    expect(t).toContain("32% of my Claude Code cache bill, recoverable with one config line");
+    expect(t).toContain("Check yours: npx cache-refund #cacherefund");
     expect(t.length).toBeLessThanOrEqual(280);
   });
-  it("ending B: score + R/C + token scale, under 280 chars", () => {
+  it("ending B: score + plain-English verdict + token scale, under 280 chars", () => {
     const t = shareTemplate(fixtureEndingBOptimal);
     expect(t).toContain("CERTIFIED OPTIMAL 96.3/100");
-    expect(t).toContain("The 5-minute default is actually right");
-    expect(t).toContain("R/C 5.0% < 39.5%");
-    expect(t).toMatch(/proven over [\d.]+[MBK]? tokens/);
+    expect(t).toContain("The default cache setting is actually right for how I work");
+    expect(t).toMatch(/verified over [\d.]+[MBK]? tokens/);
+    expect(t).not.toContain("R/C"); // jargon killed
     expect(t.length).toBeLessThanOrEqual(280);
   });
-  it("ending C: receipt figure + window + scale, under 280 chars", () => {
+  it("ending C: pct cut + API-value + window + scale, under 280 chars", () => {
     const t = shareTemplate(fixtureEndingCReceipt);
-    expect(t).toContain("absorbed ~$2,500.95-eq vs a 5m world in the last 90 days");
-    expect(t).toContain("efficiency 98.5/100");
+    // |delta -2500.95| / cost5m 18121.67 = 13.8% -> rounds to 14
+    expect(t).toContain("cut my Claude Code cache costs ~14%");
+    expect(t).toContain("that's ≈$2,500.95 in API-value over the last 90 days");
     expect(t).toMatch(/across [\d.]+B tokens · 590 sessions/);
-    expect(t).toContain("measured locally from my own transcripts");
     expect(t.length).toBeLessThanOrEqual(280);
+  });
+  it("no jargon in any ending: no '-eq', no 'world'; every pct sane 1-99", () => {
+    for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
+      const t = shareTemplate(s);
+      expect(t, "share text must not carry the -eq terminal convention").not.toContain("-eq");
+      expect(t.toLowerCase(), "share text must not say '5m world'").not.toContain("world");
+      const pcts = [...t.matchAll(/(\d+)%/g)].map((m) => Number(m[1]));
+      for (const p of pcts) {
+        expect(p).toBeGreaterThanOrEqual(1);
+        expect(p).toBeLessThanOrEqual(99);
+      }
+    }
+    // The two percentage endings actually carry a pct
+    expect(shareTemplate(fixtureEndingAEnable)).toMatch(/\d+% of my Claude Code cache bill/);
+    expect(shareTemplate(fixtureEndingCReceipt)).toMatch(/~\d+%/);
   });
   it("never includes a project name, any ending", () => {
     for (const s of [fixtureEndingAEnable, fixtureEndingBOptimal, fixtureEndingCReceipt]) {
