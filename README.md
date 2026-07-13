@@ -253,6 +253,6 @@ Wrong-number reports get a priority lane — see
 An m8t labs project. See [AUTHORS.md](./AUTHORS.md) for core authorship and
 contributor ownership details.
 
-© 2026 The m8t labs Authors.
+© 2026 The cache-refund Authors.
 
 Methodology in full: [METHODOLOGY.md](./METHODOLOGY.md) · or run `npx cache-refund --explain`.
