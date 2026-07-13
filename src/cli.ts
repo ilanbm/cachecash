@@ -11,6 +11,7 @@
  *
  *   --days N (90) · --project <path> · --price <model=$/MTok,...> · --yes ·
  *   --no-color · --all-time · --json · --md · --compact · --explain ·
+ *   --version · --help ·
  *   --projects (v1.0.1: opt back into project names in human output;
  *               default is share-safe — no project names in screenshots)
  *   --no-share (v1.0.2: silence the share prompt; same as env
@@ -36,6 +37,7 @@
 
 import { realpathSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { run } from "./pipeline.js";
@@ -141,6 +143,36 @@ class UsageError extends Error {}
 function describeArg(raw: string | undefined): string {
   return raw === undefined ? "nothing" : JSON.stringify(raw);
 }
+
+const HELP_TEXT = `cache-refund - a cache doctor for Claude Code
+
+Usage
+  npx cache-refund                 full checkup
+  npx cache-refund card            score box + top Wrapped line
+  npx cache-refund enable          confirmed 1h-TTL enable flow
+  npx cache-refund revert          confirmed 5m-TTL revert flow
+  npx cache-refund verify          post-enable TTL check
+  npx cache-refund recheck         baseline comparison
+
+Flags
+  --days <n>                 analysis window in days (default 90)
+  --all-time                 the whole corpus, ignoring --days
+  --project <path>           one project directory only
+  --price <model=$/MTok,...> per-model price overrides
+  --plan <usd>               your monthly subscription price, in USD
+  --yes, -y                  skip the confirmation prompt
+  --json                     machine-readable summary; never prompts
+  --md                       markdown report
+  --compact                  the short version
+  --explain                  the formulas, with your numbers filled in
+  --projects                 show project names (hidden by default)
+  --no-share                 silence the share prompt
+  --no-color                 strip ANSI color
+  --version                  print the version and exit
+  --help                     this
+
+Exit codes: 0 ok, 1 no transcripts found, 2 parse/internal error
+`;
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
@@ -359,9 +391,27 @@ function promptBranch(): Promise<Branch> {
 // ------------------------------------------------------------------ main
 
 async function main(): Promise<number> {
+  const rawArgv = process.argv.slice(2);
+
+  // --version / --help short-circuit everything else, at any argv position
+  // (e.g. `cache-refund card --help`) — they must answer with no transcripts,
+  // no HOME, and no TTY required, since that's what a fresh `npx cache-refund
+  // --version` on a random machine looks like. Ahead of parseArgs too, so a
+  // bad companion flag can't turn `--help` into a usage error. --version wins
+  // when both are present.
+  if (rawArgv.includes("--version")) {
+    const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+    process.stdout.write(pkg.version + "\n");
+    return 0;
+  }
+  if (rawArgv.includes("--help")) {
+    process.stdout.write(HELP_TEXT);
+    return 0;
+  }
+
   let args: Args;
   try {
-    args = parseArgs(process.argv.slice(2));
+    args = parseArgs(rawArgv);
   } catch (err) {
     if (err instanceof UsageError) {
       process.stderr.write(`cache-refund: ${err.message}\n`);
